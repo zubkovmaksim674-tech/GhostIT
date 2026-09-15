@@ -4,7 +4,7 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 const pkgPath = path.join(root, 'package.json');
-const lockPath = path.join(root, 'node_modules', '.ghostqa-build-lock');
+const lockPath = path.join(root, 'node_modules', '.ghostit-build-lock');
 
 const args = process.argv.slice(2);
 const newVersion = args.find((a) => /^\d+\.\d+\.\d+/.test(a)) || null;
@@ -16,7 +16,7 @@ function fail(message) {
 }
 
 if (fs.existsSync(lockPath)) {
-  fail('Идёт другая сборка (node_modules/.ghostqa-build-lock существует). Дождись её завершения и не запускай electron-builder параллельно.');
+  fail('Идёт другая сборка (node_modules/.ghostit-build-lock существует). Дождись её завершения и не запускай electron-builder параллельно.');
 }
 
 fs.writeFileSync(lockPath, String(process.pid));

@@ -945,7 +945,7 @@ async function boot() {
       }
       log('SMOKE_RESULT ' + JSON.stringify(results));
       try {
-        fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostqa-smoke.json'), JSON.stringify(results));
+        fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostit-smoke.json'), JSON.stringify(results));
       } catch {}
       quitting = true;
       app.exit(0);
@@ -997,7 +997,7 @@ async function boot() {
       } catch (e) { res = { evalError: String(e && e.message || e) }; }
       log('AUDIO_RESULT ' + JSON.stringify(res));
       try {
-        fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostqa-audio.json'), JSON.stringify(res));
+        fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostit-audio.json'), JSON.stringify(res));
       } catch {}
       quitting = true;
       app.exit(0);
@@ -1062,7 +1062,7 @@ if (DOMTEST) {
       const payload = failed ? { failed } : result;
       log('DOM_RESULT ' + JSON.stringify(payload));
       try {
-        fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostqa-dom.json'), JSON.stringify(payload));
+        fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostit-dom.json'), JSON.stringify(payload));
       } catch {}
       quitting = true;
       app.exit(0);
@@ -1082,7 +1082,7 @@ if (DOMTEST) {
         log('UPDATEBAR_FAIL ' + error.message);
       }
       const shot = await win.webContents.capturePage();
-      fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostqa-update-banner.png'), shot.toPNG());
+      fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostit-update-banner.png'), shot.toPNG());
       log('UPDATETEST_SAVED banner');
       quitting = true;
       app.exit(0);
@@ -1093,12 +1093,12 @@ if (DOMTEST) {
     win.webContents.once('did-finish-load', async () => {
       await new Promise((resolve) => setTimeout(resolve, 1500));
       const shot1 = await win.webContents.capturePage();
-      fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostqa-ui.png'), shot1.toPNG());
+      fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostit-ui.png'), shot1.toPNG());
       sendToRenderer('open-settings');
       await new Promise((resolve) => setTimeout(resolve, 600));
       const shot2 = await win.webContents.capturePage();
-      fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostqa-ui-settings.png'), shot2.toPNG());
-      log('UITEST_SAVED ' + path.join(require('os').tmpdir(), 'ghostqa-ui-settings.png'));
+      fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostit-ui-settings.png'), shot2.toPNG());
+      log('UITEST_SAVED ' + path.join(require('os').tmpdir(), 'ghostit-ui-settings.png'));
       quitting = true;
       app.exit(0);
     });

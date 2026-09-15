@@ -50,7 +50,7 @@ if (wav.sampleRate !== 16000) {
 }
 
 const worker = spawn(process.execPath, [path.join(__dirname, '..', 'worker', 'stt.js')], {
-  env: { ...process.env, MODEL_CACHE_DIR: path.join(require('os').tmpdir(), 'ghostqa-model-test') },
+  env: { ...process.env, MODEL_CACHE_DIR: path.join(require('os').tmpdir(), 'ghostit-model-test') },
   stdio: ['pipe', 'pipe', 'pipe']
 });
 
@@ -91,7 +91,7 @@ worker.stdin.write(JSON.stringify({
   model,
   language,
   hfEndpoint: process.env.HF_ENDPOINT || '',
-  cacheDir: path.join(require('os').tmpdir(), 'ghostqa-model-test')
+  cacheDir: path.join(require('os').tmpdir(), 'ghostit-model-test')
 }) + '\n');
 
 setTimeout(() => {
