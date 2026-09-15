@@ -38,7 +38,7 @@ let uiohookRef = null;
 let talkHandlers = null;
 
 function log(...args) {
-  console.log('[ghostqa]', ...args);
+  console.log('[ghostit]', ...args);
 }
 
 function sendToRenderer(channel, payload) {
@@ -146,6 +146,7 @@ function createWindow(port) {
     hasShadow: false,
     show: false,
     backgroundColor: '#14171f',
+    icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -194,6 +195,13 @@ function createWindow(port) {
 }
 
 function createTrayIcon() {
+  const iconPath = path.join(__dirname, 'build', 'icon.png');
+  try {
+    if (fs.existsSync(iconPath)) {
+      const image = nativeImage.createFromPath(iconPath);
+      if (!image.isEmpty()) return image.resize({ width: 32, height: 32 });
+    }
+  } catch {}
   const size = 32;
   const buffer = Buffer.alloc(size * size * 4);
   const center = (size - 1) / 2;
@@ -216,7 +224,7 @@ function createTrayIcon() {
 
 function createTray() {
   tray = new Tray(createTrayIcon());
-  tray.setToolTip('GhostQA — ассистент на собеседовании');
+  tray.setToolTip('GhostIT — ассистент на собеседовании');
   const rebuildMenu = () => {
     const cfg = config.load();
     tray.setContextMenu(Menu.buildFromTemplate([
@@ -718,7 +726,7 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
   });
 
   ipcMain.handle('update-download', async (event, url) => {
-    const dest = path.join(app.getPath('temp'), 'GhostQA-new.exe');
+    const dest = path.join(app.getPath('temp'), 'GhostIT-new.exe');
     try {
       await updater.downloadUpdate(url, dest, (percent) => {
         sendToRenderer('update-progress', { phase: 'download', percent });
@@ -731,7 +739,7 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
   });
 
   ipcMain.handle('update-install', () => {
-    const dest = path.join(app.getPath('temp'), 'GhostQA-new.exe');
+    const dest = path.join(app.getPath('temp'), 'GhostIT-new.exe');
     if (!fs.existsSync(dest)) return { ok: false, error: 'Скачанный файл не найден' };
     if (!process.env.PORTABLE_EXECUTABLE_FILE) {
       shell.openExternal(updater.RELEASES_PAGE);
@@ -789,7 +797,7 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
 
   ipcMain.handle('export-history', () => {
     const lines = [];
-    lines.push('GhostQA — история сессии');
+    lines.push('GhostIT — история сессии');
     lines.push('Сохранено: ' + new Date().toLocaleString('ru-RU'));
     lines.push('');
     const turns = Math.floor(history.length / 2);
@@ -801,7 +809,7 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
       lines.push('');
     }
     const documents = app.getPath('documents');
-    const file = path.join(documents, 'GhostQA-история.txt');
+    const file = path.join(documents, 'GhostIT-история.txt');
     fs.writeFileSync(file, lines.join('\n'), 'utf8');
     return file;
   });
@@ -874,7 +882,7 @@ async function runE2E() {
 }
 
 async function boot() {
-  app.setAppUserModelId('GhostQA');
+  app.setAppUserModelId('GhostIT');
   const cfg = config.load();
   history = loadHistory();
   const port = await startServer();

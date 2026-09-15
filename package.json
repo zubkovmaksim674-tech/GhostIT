@@ -1,7 +1,7 @@
 {
   "name": "ghost-qa",
-  "productName": "GhostQA",
-  "version": "0.1.3",
+  "productName": "GhostIT",
+  "version": "0.2.0",
   "description": "QA-ассистент: слушает вопросы по горячей клавише и мгновенно выдаёт ответы в оверлее поверх всех окон",
   "main": "main.js",
   "scripts": {
@@ -9,19 +9,21 @@
     "smoke": "electron . --smoke",
     "rebuild": "electron-rebuild -f -w uiohook-napi",
     "dist": "electron-builder --win portable nsis",
+    "icons": "node scripts/make-icons.js",
     "release": "node scripts/release.js"
   },
   "author": "",
   "license": "MIT",
   "build": {
-    "appId": "com.ghostqa.app",
-    "productName": "GhostQA",
+    "appId": "com.ghostit.app",
+    "productName": "GhostIT",
     "files": [
       "main.js",
       "preload.js",
       "renderer/**",
       "worker/**",
       "lib/**",
+      "build/**",
       "package.json"
     ],
     "asar": true,
@@ -37,10 +39,11 @@
       "target": [
         "portable",
         "nsis"
-      ]
+      ],
+      "icon": "build/icon.ico"
     },
     "portable": {
-      "artifactName": "GhostQA.exe"
+      "artifactName": "GhostIT.exe"
     },
     "nsis": {
       "oneClick": false,
@@ -48,9 +51,9 @@
       "perMachine": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "GhostQA",
-      "artifactName": "GhostQA-Setup-${version}.exe",
-      "uninstallDisplayName": "GhostQA"
+      "shortcutName": "GhostIT",
+      "artifactName": "GhostIT-Setup-${version}.exe",
+      "uninstallDisplayName": "GhostIT"
     }
   },
   "devDependencies": {

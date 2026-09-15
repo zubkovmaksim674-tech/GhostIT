@@ -54,7 +54,7 @@ try {
   console.log('🔨 Сборка (electron-builder)…');
   execSync('npm run dist', { cwd: root, stdio: 'inherit' });
 
-  console.log('✅ Сборка завершена: dist/GhostQA.exe');
+  console.log('✅ Сборка завершена: dist/GhostIT.exe');
 } catch (e) {
   const msg = e && e.message ? e.message.split('\n')[0] : String(e);
   fail('Сборка упала: ' + msg);
