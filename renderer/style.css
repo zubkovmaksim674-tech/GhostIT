@@ -708,3 +708,5 @@ input[type="range"]::-webkit-slider-runnable-track {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 2px;
 }
+
+.tg-qr { display: flex; justify-content: center; padding: 10px; background: #fff; border-radius: 8px; width: fit-content; margin: 8px auto; }

@@ -81,6 +81,19 @@
       <label>Системный промпт<textarea id="s-prompt" rows="3"></textarea></label>
     </div>
 
+    <div class="section-label">Аккаунт</div>
+    <div class="settings-card">
+      <div class="settings-actions">
+        <button id="btn-tg-auth" class="suggestion-action primary">🔑 Войти через Telegram</button>
+        <span class="muted small" id="tg-auth-state"></span>
+      </div>
+      <div id="tg-auth-box" class="hidden">
+        <div id="tg-qr" class="tg-qr"></div>
+        <div class="muted small" id="tg-auth-code"></div>
+        <div class="muted small" id="tg-auth-hint">Отсканируй QR камерой Telegram или открой бота и нажми «🤝 Подключить GhostIT»</div>
+      </div>
+    </div>
+
     <div class="section-label">Активация</div>
     <div class="settings-card">
       <label>Режим активации<select id="s-mode">
@@ -153,6 +166,7 @@
   </div>
 
 </div>
+<script src="qrcode.min.js"></script>
 <script src="renderer.js"></script>
 </body>
 </html>

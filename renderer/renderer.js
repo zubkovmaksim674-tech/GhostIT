@@ -583,6 +583,55 @@ document.getElementById('btn-dl-model').addEventListener('click', async () => {
     setStatus('err', 'Ошибка скачивания: ' + result.message);
   }
 });
+
+const PROXY_BASE_URL = 'https://ghostqa-proxy.fog-map-concept.workers.dev/v1';
+const tgAuth = { timer: null };
+
+function stopTgAuthPoll() {
+  if (tgAuth.timer) clearInterval(tgAuth.timer);
+  tgAuth.timer = null;
+}
+
+async function startTgAuth() {
+  const state = document.getElementById('tg-auth-state');
+  const box = document.getElementById('tg-auth-box');
+  const qrEl = document.getElementById('tg-qr');
+  stopTgAuthPoll();
+  state.textContent = 'создаю сессию…';
+  const s = await window.ghost.tgAuthStart();
+  if (s.error) {
+    state.textContent = 'ошибка: ' + s.error;
+    return;
+  }
+  box.classList.remove('hidden');
+  qrEl.innerHTML = '';
+  new QRCode(qrEl, { text: s.qr, width: 170, height: 170, correctLevel: QRCode.CorrectLevel.M });
+  document.getElementById('tg-auth-code').textContent = 'или нажми «🤝 Подключить GhostIT» в боте, код: ' + s.code;
+  state.textContent = 'ожидание Telegram…';
+  const t0 = Date.now();
+  tgAuth.timer = setInterval(async () => {
+    const p = await window.ghost.tgAuthPoll(s.sid);
+    if (p.error) return;
+    if (Date.now() - t0 > 9 * 60 * 1000) {
+      stopTgAuthPoll();
+      state.textContent = 'время вышло — нажми ещё раз';
+      return;
+    }
+    if (p.status === 'linked' && p.token) {
+      stopTgAuthPoll();
+      config = await window.ghost.saveConfig({
+        api: { baseUrl: PROXY_BASE_URL, apiKey: p.token, model: 'groq' }
+      });
+      fillSettings();
+      state.textContent = '✅ подключено, тариф: ' + (p.plan || 'demo');
+      box.classList.add('hidden');
+      setStatus('ok', 'Telegram-аккаунт привязан');
+      setTimeout(() => setStatus('idle', autoOn ? autoIdleText() : 'Готов'), 2000);
+    }
+  }, 2500);
+}
+
+document.getElementById('btn-tg-auth').addEventListener('click', startTgAuth);
 document.getElementById('btn-hist-close').addEventListener('click', closeHistory);
 document.getElementById('btn-hist-clear').addEventListener('click', async () => {
   await window.ghost.clearHistory();

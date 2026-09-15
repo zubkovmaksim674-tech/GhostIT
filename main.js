@@ -9,6 +9,8 @@ const { isQuestion } = require('./lib/question');
 const updater = require('./lib/updater');
 
 app.disableHardwareAcceleration();
+
+const AUTH_URL = process.env.GHOSTIT_AUTH_URL || 'https://ghostit.fog-map-concept.workers.dev';
 app.commandLine.appendSwitch('enable-usermedia-screen-capturing');
 app.commandLine.appendSwitch('allow-http-screen-capture');
 
@@ -157,7 +159,7 @@ function createWindow(port) {
     try { win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }); } catch {}
   }
   win.setOpacity(cfg.ui.opacity);
-  win.setContentProtection(cfg.ui.protectCapture !== false);
+  win.setContentProtection(cfg.ui.protectCapture === true);
   if (cfg.ui.clickThrough) win.setIgnoreMouseEvents(true, { forward: true });
 
   win.loadURL(`http://127.0.0.1:${port}/index.html`);
@@ -606,11 +608,36 @@ function saveHistory() {
 function registerIpc() {
   ipcMain.handle('get-config', () => config.load());
 
+  ipcMain.handle('tg-auth-start', async () => {
+    try {
+      const os = require('os');
+      const res = await fetch(AUTH_URL + '/v1/session/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device: os.hostname() })
+      });
+      if (!res.ok) throw new Error('auth http ' + res.status);
+      return await res.json();
+    } catch (error) {
+      return { error: error.message };
+    }
+  });
+
+  ipcMain.handle('tg-auth-poll', async (event, sid) => {
+    try {
+      const res = await fetch(AUTH_URL + '/v1/session/' + encodeURIComponent(String(sid || '')));
+      if (!res.ok) throw new Error('poll http ' + res.status);
+      return await res.json();
+    } catch (error) {
+      return { error: error.message };
+    }
+  });
+
   ipcMain.handle('save-config', (event, patch) => {
     const updated = config.save(patch);
     if (win && !win.isDestroyed()) {
       win.setOpacity(updated.ui.opacity);
-      win.setContentProtection(updated.ui.protectCapture !== false);
+      win.setContentProtection(updated.ui.protectCapture === true);
     }
     if (tray && tray.rebuildMenu) tray.rebuildMenu();
     setupHotkeys();
