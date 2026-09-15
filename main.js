@@ -10,7 +10,7 @@ const updater = require('./lib/updater');
 
 app.disableHardwareAcceleration();
 
-const AUTH_URL = process.env.GHOSTIT_AUTH_URL || 'https://ghostit.fog-map-concept.workers.dev';
+const AUTH_URL = process.env.GHOSTIT_AUTH_URL || 'https://ghostqa-bot.fog-map-concept.workers.dev';
 app.commandLine.appendSwitch('enable-usermedia-screen-capturing');
 app.commandLine.appendSwitch('allow-http-screen-capture');
 
