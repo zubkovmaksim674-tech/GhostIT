@@ -122,6 +122,20 @@ html, body {
   position: relative;
 }
 
+.clickthrough-hint {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  background: #b54718;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 12px;
+  text-align: center;
+}
+
 .live-widget,
 .live-widget * { cursor: default !important; }
 
@@ -170,6 +184,7 @@ html, body {
   white-space: nowrap;
 }
 .badge.hidden, .hidden { display: none !important; }
+.badge-float { margin-left: auto; }
 
 .spacer { flex: 1; }
 
@@ -329,6 +344,29 @@ html, body {
 .titlebar-button.on { color: var(--status-active); }
 .titlebar-button.dim { opacity: 0.5; }
 
+.settings-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(185, 191, 229, 0.08);
+  border: 1px solid var(--divider);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 18px;
+  height: 30px;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.settings-button:hover {
+  background: rgba(185, 191, 229, 0.18);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+.settings-button .gear { font-size: 14px; line-height: 1; }
+
 /* ===== Статус ===== */
 .status-container {
   display: flex;
@@ -365,6 +403,58 @@ html, body {
 .status-indicator.streaming { background-color: var(--status-active); box-shadow: 0 0 5px rgba(3, 218, 198, 0.7); }
 .status-indicator.err { background-color: var(--status-error); box-shadow: 0 0 5px rgba(207, 102, 121, 0.7); }
 @keyframes pulse { 50% { opacity: 0.3; } }
+
+/* ===== Панель обновления ===== */
+.update-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 16px;
+  background-color: rgba(3, 218, 198, 0.08);
+  border-bottom: 1px solid rgba(46, 46, 46, 0.6);
+  flex-shrink: 0;
+}
+.update-bar.hidden { display: none; }
+.update-text {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.update-text .progress-track {
+  display: inline-block;
+  width: 90px;
+  height: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.update-text .progress-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--status-active);
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+
+/* ===== Подсказка клик-сквозь ===== */
+.clickthrough-hint {
+  margin: 6px 16px 0;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 183, 77, 0.5);
+  border-radius: 15px;
+  background-color: rgba(255, 183, 77, 0.1);
+  color: var(--status-warning);
+  font-size: 11.5px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.clickthrough-hint.hidden { display: none; }
 
 /* ===== Вопрос ===== */
 .question-line {

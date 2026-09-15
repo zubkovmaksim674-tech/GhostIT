@@ -18,6 +18,10 @@ contextBridge.exposeInMainWorld('ghost', {
   getHistoryItems: () => ipcRenderer.invoke('get-history-items'),
   clearHistory: () => ipcRenderer.invoke('clear-history'),
   exportHistory: () => ipcRenderer.invoke('export-history'),
+  checkUpdate: () => ipcRenderer.invoke('update-check'),
+  downloadUpdate: (url) => ipcRenderer.invoke('update-download', url),
+  installUpdate: () => ipcRenderer.invoke('update-install'),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
   quit: () => ipcRenderer.invoke('quit'),
   on: (channel, callback) => {
     ipcRenderer.on(channel, (event, ...args) => callback(...args));

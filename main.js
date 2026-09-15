@@ -1,17 +1,22 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain, globalShortcut, clipboard, session } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain, globalShortcut, clipboard, session, shell, desktopCapturer } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const { spawn } = require('child_process');
 const config = require('./lib/config');
 const { streamAnswer } = require('./lib/llm');
+const updater = require('./lib/updater');
 
 app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('enable-usermedia-screen-capturing');
+app.commandLine.appendSwitch('allow-http-screen-capture');
 
 const SMOKE = process.argv.includes('--smoke');
 const UITEST = process.argv.includes('--uitest');
 const DOMTEST = process.argv.includes('--domtest');
 const E2ETEST = process.argv.includes('--e2etest');
+const UPDATETEST = process.argv.includes('--updatetest');
+const AUDIOTEST = process.argv.includes('--audiotest');
 
 let win = null;
 let tray = null;
@@ -60,10 +65,10 @@ function idleText() {
   const cfg = config.load();
   const mode = hotkeyMode || cfg.hotkey.mode || 'hold';
   const auto = !!(cfg.autoListen && cfg.autoListen.enabled);
-  if (auto) return 'Готов. 👂 Слушаю в фоне — задай вопрос голосом';
-  if (mode === 'hold') return 'Готов. Зажми ' + prettyCombo(cfg.hotkey.combo) + ' и задай вопрос';
-  if (mode === 'toggle') return 'Готов. Нажми ' + prettyCombo(cfg.hotkey.combo) + ' — говори, нажми ещё раз';
-  return 'Готов';
+  if (auto) return 'Р“РѕС‚РѕРІ. рџ‘‚ РЎР»СѓС€Р°СЋ РІ С„РѕРЅРµ вЂ” Р·Р°РґР°Р№ РІРѕРїСЂРѕСЃ РіРѕР»РѕСЃРѕРј';
+  if (mode === 'hold') return 'Р“РѕС‚РѕРІ. Р—Р°Р¶РјРё ' + prettyCombo(cfg.hotkey.combo) + ' Рё Р·Р°РґР°Р№ РІРѕРїСЂРѕСЃ';
+  if (mode === 'toggle') return 'Р“РѕС‚РѕРІ. РќР°Р¶РјРё ' + prettyCombo(cfg.hotkey.combo) + ' вЂ” РіРѕРІРѕСЂРё, РЅР°Р¶РјРё РµС‰С‘ СЂР°Р·';
+  return 'Р“РѕС‚РѕРІ';
 }
 
 function startServer() {
@@ -208,18 +213,18 @@ function createTrayIcon() {
 
 function createTray() {
   tray = new Tray(createTrayIcon());
-  tray.setToolTip('GhostQA — ассистент на собеседовании');
+  tray.setToolTip('GhostQA вЂ” Р°СЃСЃРёСЃС‚РµРЅС‚ РЅР° СЃРѕР±РµСЃРµРґРѕРІР°РЅРёРё');
   const rebuildMenu = () => {
     const cfg = config.load();
     tray.setContextMenu(Menu.buildFromTemplate([
-      { label: 'Показать / скрыть', accelerator: 'Ctrl+Shift+H', click: () => toggleWindow() },
-      { label: 'Настройки', click: () => { showWindow(); sendToRenderer('open-settings'); } },
+      { label: 'РџРѕРєР°Р·Р°С‚СЊ / СЃРєСЂС‹С‚СЊ', accelerator: 'Ctrl+Shift+H', click: () => toggleWindow() },
+      { label: 'РќР°СЃС‚СЂРѕР№РєРё', click: () => { showWindow(); sendToRenderer('open-settings'); } },
       { type: 'separator' },
-      { label: 'Автослушание', type: 'checkbox', checked: !!(cfg.autoListen && cfg.autoListen.enabled), click: (item) => setAutoListen(item.checked) },
-      { label: 'Клик сквозь окно', type: 'checkbox', checked: cfg.ui.clickThrough, click: (item) => setClickThrough(item.checked) },
-      { label: 'Скрывать от записи экрана', type: 'checkbox', checked: cfg.ui.protectCapture !== false, click: (item) => applyProtection(item.checked) },
+      { label: 'РђРІС‚РѕСЃР»СѓС€Р°РЅРёРµ', type: 'checkbox', checked: !!(cfg.autoListen && cfg.autoListen.enabled), click: (item) => setAutoListen(item.checked) },
+      { label: 'РљР»РёРє СЃРєРІРѕР·СЊ РѕРєРЅРѕ', type: 'checkbox', checked: cfg.ui.clickThrough, click: (item) => setClickThrough(item.checked) },
+      { label: 'РЎРєСЂС‹РІР°С‚СЊ РѕС‚ Р·Р°РїРёСЃРё СЌРєСЂР°РЅР°', type: 'checkbox', checked: cfg.ui.protectCapture !== false, click: (item) => applyProtection(item.checked) },
       { type: 'separator' },
-      { label: 'Выход', click: () => { quitting = true; app.quit(); } }
+      { label: 'Р’С‹С…РѕРґ', click: () => { quitting = true; app.quit(); } }
     ]));
   };
   rebuildMenu();
@@ -446,7 +451,7 @@ function ensureWorker() {
     worker = null;
     workerReady = false;
     for (const [id, item] of pending) {
-      item.reject(new Error('Процесс распознавания остановился'));
+      item.reject(new Error('РџСЂРѕС†РµСЃСЃ СЂР°СЃРїРѕР·РЅР°РІР°РЅРёСЏ РѕСЃС‚Р°РЅРѕРІРёР»СЃСЏ'));
       pending.delete(id);
     }
   });
@@ -466,13 +471,13 @@ function handleWorkerMessage(line) {
     const data = message.data;
     if (data.status === 'progress' && data.file) {
       const percent = data.total ? Math.round((data.loaded / data.total) * 100) : 0;
-      sendStatus('transcribe', `⬇️ Загружаю модель: ${data.file} — ${percent}%`);
+      sendStatus('transcribe', `в¬‡пёЏ Р—Р°РіСЂСѓР¶Р°СЋ РјРѕРґРµР»СЊ: ${data.file} вЂ” ${percent}%`);
     }
     return;
   }
 
   if (message.type === 'download-progress') {
-    sendStatus('transcribe', `⬇️ Скачиваю модель с ModelScope: ${message.file} — ${message.percent}%`);
+    sendStatus('transcribe', `в¬‡пёЏ РЎРєР°С‡РёРІР°СЋ РјРѕРґРµР»СЊ СЃ ModelScope: ${message.file} вЂ” ${message.percent}%`);
     return;
   }
 
@@ -482,7 +487,7 @@ function handleWorkerMessage(line) {
   }
 
   if (message.type === 'fatal') {
-    sendStatus('error', `Ошибка распознавания: ${message.message}`);
+    sendStatus('error', `РћС€РёР±РєР° СЂР°СЃРїРѕР·РЅР°РІР°РЅРёСЏ: ${message.message}`);
     return;
   }
 
@@ -503,7 +508,7 @@ function workerCall(type, payload) {
     setTimeout(() => {
       if (pending.has(id)) {
         pending.delete(id);
-        reject(new Error('Таймаут распознавания'));
+        reject(new Error('РўР°Р№РјР°СѓС‚ СЂР°СЃРїРѕР·РЅР°РІР°РЅРёСЏ'));
       }
     }, 180000);
   });
@@ -523,7 +528,7 @@ async function transcribe(pcm) {
 async function ask(question) {
   const cfg = config.load();
   if (!cfg.api.apiKey) {
-    sendStatus('error', 'Нет API-ключа — открой настройки (⚙) и вставь ключ');
+    sendStatus('error', 'РќРµС‚ API-РєР»СЋС‡Р° вЂ” РѕС‚РєСЂРѕР№ РЅР°СЃС‚СЂРѕР№РєРё (вљ™) Рё РІСЃС‚Р°РІСЊ РєР»СЋС‡');
     return null;
   }
 
@@ -531,7 +536,7 @@ async function ask(question) {
   const abort = new AbortController();
   currentAbort = abort;
 
-  sendStatus('thinking', '💭 Думаю…');
+  sendStatus('thinking', 'рџ’­ Р”СѓРјР°СЋвЂ¦');
   let firstChunk = true;
   try {
     const answer = await streamAnswer({
@@ -548,7 +553,7 @@ async function ask(question) {
       onDelta: (delta) => {
         if (firstChunk) {
           firstChunk = false;
-          sendStatus('streaming', '✍️ Отвечаю…');
+          sendStatus('streaming', 'вњЌпёЏ РћС‚РІРµС‡Р°СЋвЂ¦');
         }
         sendToRenderer('answer-chunk', delta);
       },
@@ -567,10 +572,10 @@ async function ask(question) {
   } catch (error) {
     if (error.name === 'AbortError') {
       sendToRenderer('answer-done', null);
-      sendStatus('idle', 'Остановлено');
+      sendStatus('idle', 'РћСЃС‚Р°РЅРѕРІР»РµРЅРѕ');
       return null;
     }
-    sendStatus('error', `Ошибка: ${error.message}`);
+    sendStatus('error', `РћС€РёР±РєР°: ${error.message}`);
     sendToRenderer('answer-error', error.message);
     return null;
   } finally {
@@ -615,7 +620,7 @@ function registerIpc() {
 
   ipcMain.handle('transcribe', async (event, pcm) => {
     try {
-      sendStatus('transcribe', '⏳ Распознаю речь…');
+      sendStatus('transcribe', 'вЏі Р Р°СЃРїРѕР·РЅР°СЋ СЂРµС‡СЊвЂ¦');
       const text = await transcribe(pcm);
       if (!text) {
         sendStatus('idle', idleText());
@@ -625,7 +630,7 @@ function registerIpc() {
       ask(text);
       return text;
     } catch (error) {
-      sendStatus('error', `Ошибка распознавания: ${error.message}`);
+      sendStatus('error', `РћС€РёР±РєР° СЂР°СЃРїРѕР·РЅР°РІР°РЅРёСЏ: ${error.message}`);
       return null;
     }
   });
@@ -666,6 +671,46 @@ function registerIpc() {
   ipcMain.handle('quit', () => {
     quitting = true;
     app.quit();
+    return true;
+  });
+
+  ipcMain.handle('update-check', async () => {
+    try {
+      const info = await updater.checkLatest(app.getVersion());
+      return { ok: true, current: app.getVersion(), ...info };
+    } catch (error) {
+      return { ok: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('update-download', async (event, url) => {
+    const dest = path.join(app.getPath('temp'), 'GhostQA-new.exe');
+    try {
+      await updater.downloadUpdate(url, dest, (percent) => {
+        sendToRenderer('update-progress', { phase: 'download', percent });
+      });
+      sendToRenderer('update-progress', { phase: 'done' });
+      return { ok: true, file: dest };
+    } catch (error) {
+      return { ok: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('update-install', () => {
+    const dest = path.join(app.getPath('temp'), 'GhostQA-new.exe');
+    if (!fs.existsSync(dest)) return { ok: false, error: 'РЎРєР°С‡Р°РЅРЅС‹Р№ С„Р°Р№Р» РЅРµ РЅР°Р№РґРµРЅ' };
+    if (!process.env.PORTABLE_EXECUTABLE_FILE) {
+      shell.showItemInFolder(dest);
+      return { ok: false, error: 'РђРІС‚РѕР·Р°РјРµРЅР° РґРѕСЃС‚СѓРїРЅР° С‚РѕР»СЊРєРѕ РІ portable-СЃР±РѕСЂРєРµ' };
+    }
+    updater.installUpdate(dest);
+    quitting = true;
+    setTimeout(() => app.exit(0), 500);
+    return { ok: true };
+  });
+
+  ipcMain.handle('open-external', (event, url) => {
+    if (/^https:\/\//i.test(String(url))) shell.openExternal(url);
     return true;
   });
 
@@ -710,19 +755,19 @@ function registerIpc() {
 
   ipcMain.handle('export-history', () => {
     const lines = [];
-    lines.push('GhostQA — история сессии');
-    lines.push('Сохранено: ' + new Date().toLocaleString('ru-RU'));
+    lines.push('GhostQA вЂ” РёСЃС‚РѕСЂРёСЏ СЃРµСЃСЃРёРё');
+    lines.push('РЎРѕС…СЂР°РЅРµРЅРѕ: ' + new Date().toLocaleString('ru-RU'));
     lines.push('');
     const turns = Math.floor(history.length / 2);
     for (let i = 0; i < turns; i++) {
-      lines.push('Вопрос ' + (i + 1) + ':');
+      lines.push('Р’РѕРїСЂРѕСЃ ' + (i + 1) + ':');
       lines.push(history[i * 2].content);
-      lines.push('Ответ:');
+      lines.push('РћС‚РІРµС‚:');
       lines.push(history[i * 2 + 1].content);
       lines.push('');
     }
     const documents = app.getPath('documents');
-    const file = path.join(documents, 'GhostQA-история.txt');
+    const file = path.join(documents, 'GhostQA-РёСЃС‚РѕСЂРёСЏ.txt');
     fs.writeFileSync(file, lines.join('\n'), 'utf8');
     return file;
   });
@@ -737,9 +782,9 @@ function startFakeLLM() {
         if (req.url.includes('/chat/completions')) {
           res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
           const parts = [
-            'REST — это архитектурный стиль для построения API, а не протокол.',
-            'Основные принципы: клиент-сервер, stateless, кэшируемость, единообразный интерфейс.',
-            'Данные обычно передаются в формате JSON.'
+            'REST вЂ” СЌС‚Рѕ Р°СЂС…РёС‚РµРєС‚СѓСЂРЅС‹Р№ СЃС‚РёР»СЊ РґР»СЏ РїРѕСЃС‚СЂРѕРµРЅРёСЏ API, Р° РЅРµ РїСЂРѕС‚РѕРєРѕР».',
+            'РћСЃРЅРѕРІРЅС‹Рµ РїСЂРёРЅС†РёРїС‹: РєР»РёРµРЅС‚-СЃРµСЂРІРµСЂ, stateless, РєСЌС€РёСЂСѓРµРјРѕСЃС‚СЊ, РµРґРёРЅРѕРѕР±СЂР°Р·РЅС‹Р№ РёРЅС‚РµСЂС„РµР№СЃ.',
+            'Р”Р°РЅРЅС‹Рµ РѕР±С‹С‡РЅРѕ РїРµСЂРµРґР°СЋС‚СЃСЏ РІ С„РѕСЂРјР°С‚Рµ JSON.'
           ];
           const chunks = [];
           for (const part of parts) {
@@ -775,7 +820,7 @@ async function runE2E() {
   try {
     const result = await win.webContents.executeJavaScript(`(async () => {
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-      await window.ghost.askText('Что такое REST?');
+      await window.ghost.askText('Р§С‚Рѕ С‚Р°РєРѕРµ REST?');
       await sleep(3500);
       return {
         answer: document.getElementById('answer').textContent.slice(0, 400),
@@ -806,8 +851,40 @@ async function boot() {
   syncAutoFromConfig(cfg);
 
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    callback(permission === 'media');
+    callback(permission === 'media' || permission === 'display-capture');
   });
+
+  session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: 1, height: 1 }
+      });
+      if (sources.length) callback({ video: sources[0], audio: 'loopback' });
+      else callback({});
+    } catch (error) {
+      log('displayMediaRequestHandler failed:', error.message);
+      callback({});
+    }
+  }, { useSystemPicker: false });
+
+  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+    desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1, height: 1 } })
+      .then((sources) => {
+        if (sources.length) callback({ video: sources[0], audio: 'loopback' });
+        else callback({});
+      })
+      .catch(() => callback({}));
+  });
+
+  setTimeout(async () => {
+    try {
+      const info = await updater.checkLatest(app.getVersion());
+      if (info.hasUpdate) {
+        sendToRenderer('update-available', { current: app.getVersion(), ...info });
+      }
+    } catch {}
+  }, 6000);
 
   if (SMOKE) {
     setTimeout(async () => {
@@ -846,32 +923,126 @@ async function boot() {
     win.webContents.once('did-finish-load', () => setTimeout(runE2E, 400));
   }
 
-  if (DOMTEST) {
+  if (AUDIOTEST) {
+    win.webContents.on('render-process-gone', (event, details) => log('RENDERER_GONE', JSON.stringify(details)));
+    win.webContents.on('did-fail-load', (event, code, desc) => log('DID_FAIL_LOAD', code, desc));
+    win.webContents.once('did-finish-load', () => log('AUDIOTEST_PAGE_LOADED'));
+    win.webContents.once('did-finish-load', async () => {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      let res;
+      try {
+        res = await win.webContents.executeJavaScript(`(async () => {
+        const out = {};
+        try {
+          out.hasHelper = typeof window.openAudioStream === 'function';
+          const stream = out.hasHelper ? await window.openAudioStream('system') : await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 1 }, audio: true });
+          out.tracks = stream.getTracks().map(t => t.kind + ':' + t.readyState);
+          const audioStream = new MediaStream(stream.getAudioTracks());
+          const ctx = new AudioContext();
+          out.sampleRate = ctx.sampleRate;
+          const src = ctx.createMediaStreamSource(audioStream);
+          const node = ctx.createScriptProcessor(4096, 1, 1);
+          const mute = ctx.createGain(); mute.gain.value = 0;
+          let peak = 0, rmsMax = 0, frames = 0;
+          node.onaudioprocess = (e) => {
+            const d = e.inputBuffer.getChannelData(0);
+            let s = 0;
+            for (let i = 0; i < d.length; i++) { const v = Math.abs(d[i]); if (v > peak) peak = v; s += d[i] * d[i]; }
+            const r = Math.sqrt(s / d.length);
+            if (r > rmsMax) rmsMax = r;
+            frames++;
+          };
+          src.connect(node); node.connect(mute); mute.connect(ctx.destination);
+          await new Promise((r) => setTimeout(r, 4000));
+          try { src.disconnect(); node.disconnect(); } catch {}
+          stream.getTracks().forEach((t) => t.stop());
+          try { await ctx.close(); } catch {}
+          out.peak = +peak.toFixed(6); out.rmsMax = +rmsMax.toFixed(6); out.frames = frames;
+        } catch (e) { out.error = String(e && e.message || e); }
+        return out;
+      })()`);
+      } catch (e) { res = { evalError: String(e && e.message || e) }; }
+      log('AUDIO_RESULT ' + JSON.stringify(res));
+      try {
+        fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostqa-audio.json'), JSON.stringify(res));
+      } catch {}
+      quitting = true;
+      app.exit(0);
+    });
+  }
+
+if (DOMTEST) {
     win.webContents.on('console-message', (event, level, message) => log('renderer-console:', level, message));
     win.webContents.once('did-finish-load', async () => {
       await new Promise((resolve) => setTimeout(resolve, 1500));
-      const dom = await win.webContents.executeJavaScript(`(() => {
-        const statusText = document.getElementById('status-text');
-        const settings = document.getElementById('settings');
-        return {
-          title: document.title,
-          hasApp: !!document.getElementById('app'),
-          statusText: statusText ? statusText.textContent : null,
-          statusDotClass: document.getElementById('status-dot').className,
-          settingsHidden: settings.classList.contains('hidden'),
-          buttonIds: [...document.querySelectorAll('button')].map(b => b.id),
-           answerPlaceholder: document.getElementById('answer-text').classList.contains('placeholder'),
-          bodyHeight: document.body.clientHeight,
-           modeBadge: document.getElementById('mode-badge').textContent,
-           headerRect: JSON.stringify(document.querySelector('.widget-header').getBoundingClientRect()),
-           appRect: JSON.stringify(document.getElementById('app').getBoundingClientRect()),
-           headerBg: getComputedStyle(document.querySelector('.widget-header')).display + '/' + getComputedStyle(document.getElementById('btn-record')).visibility + '/' + getComputedStyle(document.getElementById('btn-record')).opacity
-        };
-      })()`);
-      log('DOM_RESULT ' + JSON.stringify(dom));
+      let result;
+      let failed = null;
       try {
-        fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostqa-dom.json'), JSON.stringify(dom));
+        result = await win.webContents.executeJavaScript(`(async () => {
+          const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+          const statusText = document.getElementById('status-text');
+          const settings = document.getElementById('settings');
+          const res = {
+            title: document.title,
+            hasApp: !!document.getElementById('app'),
+            statusText: statusText ? statusText.textContent : null,
+            statusDotClass: document.getElementById('status-dot').className,
+            settingsHidden: settings.classList.contains('hidden'),
+            buttonIds: [...document.querySelectorAll('button')].map(b => b.id),
+            answerPlaceholder: document.getElementById('answer').classList.contains('placeholder'),
+            bodyHeight: document.body.clientHeight,
+            modeBadge: document.getElementById('mode-badge').textContent,
+            clickthroughHintHidden: document.getElementById('clickthrough-hint').classList.contains('hidden'),
+            headerWidth: (() => { const h = document.querySelector('.widget-header'); return h ? h.scrollWidth + '/' + h.clientWidth : 'n/a'; })()
+          };
+          document.getElementById('btn-settings').click();
+          await sleep(300);
+          res.settingsOpens = !settings.classList.contains('hidden');
+          res.settingsDisplay = getComputedStyle(settings).display;
+          res.sBaseurl = document.getElementById('s-baseurl').value;
+          res.sProtectChecked = document.getElementById('s-protect').checked;
+          document.getElementById('btn-settings-close').click();
+          document.getElementById('btn-history').click();
+          await sleep(300);
+          res.historyOpens = !document.getElementById('history').classList.contains('hidden');
+          try {
+            const t0 = await window.ghost.transcribe(new Float32Array(16000));
+            res.transcribeTest = 'ok:' + (t0 === null ? 'null' : String(t0).slice(0, 20));
+          } catch (e) { res.transcribeTest = 'err:' + e.message; }
+          try {
+            const sid = await window.ghost.getScreenSourceId();
+            res.screenSourceTest = sid ? 'ok:' + String(sid).slice(0, 40) : 'null';
+          } catch (e) { res.screenSourceTest = 'err:' + e.message; }
+          return res;
+        })()`);
+      } catch (error) {
+        failed = error && error.message ? error.message : String(error);
+      }
+      const payload = failed ? { failed } : result;
+      log('DOM_RESULT ' + JSON.stringify(payload));
+      try {
+        fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostqa-dom.json'), JSON.stringify(payload));
       } catch {}
+      quitting = true;
+      app.exit(0);
+    });
+  }
+
+  if (UPDATETEST) {
+    win.webContents.once('did-finish-load', async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      const info = await updater.checkLatest('0.0.1');
+      sendToRenderer('update-available', { current: '0.0.1', ...info });
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      try {
+        const state = await win.webContents.executeJavaScript(`({ barHidden: document.getElementById('update-bar').classList.contains('hidden'), text: document.getElementById('update-text').textContent, btn: document.getElementById('btn-update').textContent })`);
+        log('UPDATEBAR ' + JSON.stringify(state));
+      } catch (error) {
+        log('UPDATEBAR_FAIL ' + error.message);
+      }
+      const shot = await win.webContents.capturePage();
+      fs.writeFileSync(path.join(require('os').tmpdir(), 'ghostqa-update-banner.png'), shot.toPNG());
+      log('UPDATETEST_SAVED banner');
       quitting = true;
       app.exit(0);
     });

@@ -10,6 +10,8 @@
 <body>
 <div id="app" class="live-widget">
 
+  <div id="clickthrough-hint" class="clickthrough-hint hidden">🖱 Клик сквозь окно ВКЛ — нажми Ctrl+Shift+K, чтобы вернуть клики</div>
+
   <header class="widget-header">
     <div class="widget-primary-controls">
       <span id="session-dot" class="session-status-indicator"></span>
@@ -21,7 +23,6 @@
           <span class="waveform-bar"></span>
         </span>
       </button>
-      <span id="mode-badge" class="badge hidden"></span>
     </div>
     <span class="spacer"></span>
     <div class="action-buttons-container">
@@ -30,7 +31,7 @@
     <div class="titlebar-controls">
       <button id="btn-history" class="titlebar-button" title="История сессии">📜</button>
       <button id="btn-pin" class="titlebar-button" title="Клик сквозь окно (Ctrl+Shift+K)">🖱</button>
-      <button id="btn-settings" class="titlebar-button" title="Настройки">⚙️</button>
+      <button id="btn-settings" class="settings-button" title="Настройки"><span class="gear">⚙️</span><span class="settings-label">Настройки</span></button>
       <button id="btn-hide" class="titlebar-button close-button" title="Скрыть (Ctrl+Shift+H)">✕</button>
     </div>
   </header>
@@ -38,7 +39,15 @@
   <div class="status-container">
     <span id="status-dot" class="status-indicator idle"></span>
     <span id="status-text" class="status-message">Загрузка…</span>
+    <span id="mode-badge" class="badge badge-float hidden"></span>
   </div>
+
+  <div id="update-bar" class="update-bar hidden">
+    <span id="update-text" class="update-text"></span>
+    <button id="btn-update" class="suggestion-action primary">Обновить</button>
+  </div>
+
+  <div id="clickthrough-hint" class="clickthrough-hint hidden">Клик сквозь окно включён — Ctrl+Shift+K выключит</div>
 
   <div id="question" class="question-line hidden"></div>
 
@@ -96,6 +105,10 @@
         <option value="auto">Автоопределение</option>
         <option value="en">English</option>
       </select></label>
+      <label>Автослушание слушает<select id="s-listen">
+        <option value="mic">Меня (микрофон)</option>
+        <option value="system">Собеседника (звук звонка из системы)</option>
+      </select></label>
       <div class="settings-actions">
         <button id="btn-dl-model" class="suggestion-action">⬇️ Скачать модель</button>
       </div>
@@ -108,6 +121,15 @@
       <label class="row"><input id="s-auto" type="checkbox"> Автослушание включено</label>
       <label class="row">Чувствительность автослушания<input id="s-sens" type="range" min="5" max="90" value="35"></label>
       <label class="row">Прозрачность<input id="s-opacity" type="range" min="50" max="100" value="95"></label>
+    </div>
+
+    <div class="section-label">Обновления</div>
+    <div class="settings-card">
+      <div class="muted small" id="update-version"></div>
+      <div class="settings-actions">
+        <button id="btn-check-update" class="suggestion-action">🔄 Проверить обновления</button>
+      </div>
+      <div id="update-info" class="muted small"></div>
     </div>
 
     <div class="settings-actions">

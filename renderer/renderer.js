@@ -202,12 +202,20 @@ function flushPendingSegment() {
   }
 }
 
+async function openAudioStream(listenSource) {
+  if (listenSource === 'system') {
+    // видео-трек держим (1 fps) — если его остановить, Chromium рвёт и audio loopback-сессию
+    return navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 1 }, audio: true });
+  }
+  return navigator.mediaDevices.getUserMedia({
+    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+  });
+}
+
 async function startRecording() {
   if (rec.active) return;
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-    });
+    const stream = await openAudioStream('mic');
     const ctx = new AudioContext();
     const source = ctx.createMediaStreamSource(stream);
     const node = ctx.createScriptProcessor(4096, 1, 1);
@@ -273,10 +281,9 @@ async function stopRecording() {
 
 async function startAutoListen() {
   if (vad.active) return;
+  const listenSource = (config && config.audio && config.audio.listenSource) || 'mic';
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-    });
+    const stream = await openAudioStream(listenSource);
     const ctx = new AudioContext();
     const source = ctx.createMediaStreamSource(stream);
     const node = ctx.createScriptProcessor(4096, 1, 1);
@@ -334,7 +341,7 @@ async function startAutoListen() {
     vad.active = true;
     setStatus('auto', autoIdleText());
   } catch (error) {
-    setStatus('err', 'Автослушание: нет доступа к микрофону: ' + error.message);
+    setStatus('err', 'Автослушание: ' + error.message);
   }
 }
 
@@ -412,6 +419,7 @@ function fillSettings() {
   document.getElementById('s-combo').value = config.hotkey.combo || 'ctrl+shift+space';
   document.getElementById('s-whisper').value = config.whisper.model || 'Xenova/whisper-small';
   document.getElementById('s-lang').value = config.whisper.language || 'ru';
+  document.getElementById('s-listen').value = (config.audio && config.audio.listenSource) || 'mic';
   document.getElementById('s-tts').checked = !!(config.ui && config.ui.tts);
   document.getElementById('s-protect').checked = config.ui.protectCapture !== false;
   document.getElementById('s-auto').checked = autoOn;
@@ -432,6 +440,7 @@ function closeSettings() {
 async function saveSettings() {
   const opacity = Math.max(50, Math.min(100, Number(document.getElementById('s-opacity').value) || 95)) / 100;
   const sensitivity = Math.max(5, Math.min(90, Number(document.getElementById('s-sens').value) || 35));
+  const prevListen = (config && config.audio && config.audio.listenSource) || 'mic';
   const patch = {
     api: {
       baseUrl: document.getElementById('s-baseurl').value.trim(),
@@ -441,6 +450,9 @@ async function saveSettings() {
     whisper: {
       model: document.getElementById('s-whisper').value,
       language: document.getElementById('s-lang').value
+    },
+    audio: {
+      listenSource: document.getElementById('s-listen').value
     },
     hotkey: {
       mode: document.getElementById('s-mode').value,
@@ -461,6 +473,10 @@ async function saveSettings() {
   updateModeBadge();
   closeSettings();
   setStatus('ok', 'Настройки сохранены');
+  if (vad.active && config.audio.listenSource !== prevListen) {
+    await stopAutoListen();
+    startAutoListen();
+  }
   setTimeout(() => setStatus('idle', autoOn ? autoIdleText() : 'Готов'), 1600);
 }
 
@@ -500,15 +516,16 @@ async function refreshHistory() {
 async function updateModeBadge() {
   const m = await window.ghost.hotkeyMode();
   mode = m;
-  const combo = config && config.hotkey ? config.hotkey.combo : 'ctrl+shift+space';
   const label = {
-    hold: 'hold: ' + combo,
-    toggle: 'toggle: ' + combo,
+    hold: 'hold',
+    toggle: 'toggle',
     auto: 'автослушание',
     'hold+auto': 'hold+авто'
   }[m] || m;
-  modeBadge.textContent = label;
-  modeBadge.classList.remove('hidden');
+  if (modeBadge) {
+    modeBadge.textContent = label;
+    modeBadge.classList.remove('hidden');
+  }
 }
 
 document.getElementById('btn-record').addEventListener('click', () => window.ghost.toggleRecording());
@@ -522,9 +539,7 @@ document.getElementById('btn-history').addEventListener('click', openHistory);
 document.getElementById('btn-pin').addEventListener('click', async () => {
   clickThrough = !clickThrough;
   await window.ghost.setClickThrough(clickThrough);
-  const btn = document.getElementById('btn-pin');
-  btn.title = clickThrough ? 'Клик сквозь окно ВКЛ (Ctrl+Shift+K)' : 'Клик сквозь окно (Ctrl+Shift+K)';
-  btn.style.opacity = clickThrough ? '0.5' : '1';
+  applyClickThroughUi();
 });
 document.getElementById('btn-hide').addEventListener('click', () => window.ghost.hide());
 document.getElementById('btn-settings').addEventListener('click', openSettings);
@@ -621,16 +636,114 @@ window.ghost.on('answer-error', (message) => {
 });
 
 window.ghost.on('open-settings', openSettings);
+
+const updateBar = document.getElementById('update-bar');
+const updateText = document.getElementById('update-text');
+const btnUpdate = document.getElementById('btn-update');
+const updateVersionEl = document.getElementById('update-version');
+const updateInfoEl = document.getElementById('update-info');
+const btnCheckUpdate = document.getElementById('btn-check-update');
+
+let updateInfoData = null;
+let updatePhase = 'idle';
+
+function fmtSize(bytes) {
+  if (!bytes) return '';
+  return (bytes / 1048576).toFixed(0) + ' МБ';
+}
+
+function showUpdateBar(info) {
+  updateInfoData = info;
+  updatePhase = 'idle';
+  updateText.textContent = 'Доступно обновление: v' + info.version + ' (' + fmtSize(info.size) + ')';
+  btnUpdate.textContent = 'Обновить';
+  btnUpdate.disabled = false;
+  updateBar.classList.remove('hidden');
+  if (updateInfoEl) updateInfoEl.textContent = 'Доступна новая версия v' + info.version + ' — нажми «Обновить».';
+}
+
+async function startUpdateDownload() {
+  if (!updateInfoData || updatePhase !== 'idle') return;
+  updatePhase = 'downloading';
+  btnUpdate.textContent = '…';
+  btnUpdate.disabled = true;
+  const result = await window.ghost.downloadUpdate(updateInfoData.url);
+  if (!result || !result.ok) {
+    updatePhase = 'idle';
+    btnUpdate.textContent = 'Обновить';
+    btnUpdate.disabled = false;
+    updateText.textContent = 'Ошибка скачивания: ' + (result && result.error || 'неизвестно');
+  }
+}
+
+window.ghost.on('update-progress', (payload) => {
+  if (!payload) return;
+  if (payload.phase === 'download') {
+    updateText.textContent = 'Скачиваю обновление… ' + payload.percent + '%';
+  } else if (payload.phase === 'done') {
+    updatePhase = 'ready';
+    updateText.textContent = 'Обновление v' + updateInfoData.version + ' скачано — приложение перезапустится';
+    btnUpdate.textContent = 'Перезапустить';
+    btnUpdate.disabled = false;
+  }
+});
+
+btnUpdate.addEventListener('click', async () => {
+  if (updatePhase === 'idle') {
+    startUpdateDownload();
+  } else if (updatePhase === 'ready') {
+    const res = await window.ghost.installUpdate();
+    if (res && !res.ok) {
+      updateText.textContent = res.error || 'Не удалось установить обновление';
+      btnUpdate.textContent = 'Показать файл';
+      updatePhase = 'show';
+    }
+  } else if (updatePhase === 'show') {
+    window.ghost.installUpdate();
+  }
+});
+
+async function manualCheckUpdate() {
+  if (!btnCheckUpdate) return;
+  updateInfoEl.textContent = 'Проверяю…';
+  const res = await window.ghost.checkUpdate();
+  if (!res.ok) {
+    updateInfoEl.textContent = 'Не удалось проверить: ' + res.error;
+    return;
+  }
+  updateVersionEl.textContent = 'Текущая версия: v' + res.current;
+  if (res.hasUpdate) {
+    showUpdateBar(res);
+  } else {
+    updateInfoEl.textContent = 'Уже установлена актуальная версия v' + res.current + '.';
+  }
+}
+if (btnCheckUpdate) btnCheckUpdate.addEventListener('click', manualCheckUpdate);
+
+window.ghost.on('update-available', (info) => {
+  if (updateVersionEl) updateVersionEl.textContent = 'Текущая версия: v' + info.current;
+  showUpdateBar(info);
+});
+
 window.ghost.on('history-count', (count) => {
   const el = document.getElementById('history-count');
   if (el) el.textContent = count + ' вопросов';
 });
 
+function applyClickThroughUi() {
+  const pin = document.getElementById('btn-pin');
+  if (pin) {
+    pin.title = clickThrough ? 'Клик сквозь окно ВКЛ (Ctrl+Shift+K)' : 'Клик сквозь окно (Ctrl+Shift+K)';
+    pin.style.opacity = clickThrough ? '0.5' : '1';
+  }
+  const hint = document.getElementById('clickthrough-hint');
+  if (hint) hint.classList.toggle('hidden', !clickThrough);
+}
+
 window.ghost.on('config-updated', (cfg) => {
   config = cfg;
   clickThrough = !!(cfg.ui && cfg.ui.clickThrough);
-  const pin = document.getElementById('btn-pin');
-  pin.style.opacity = clickThrough ? '0.5' : '1';
+  applyClickThroughUi();
   if (vad.active || autoOn) {
     vad.threshold = thresholdFromConfig();
     vad.silenceMs = (cfg.autoListen && cfg.autoListen.silenceMs) || 1300;
@@ -646,8 +759,7 @@ async function init() {
   vad.minSpeechMs = (config.autoListen && config.autoListen.minSpeechMs) || 700;
   await updateModeBadge();
   clickThrough = !!(config.ui && config.ui.clickThrough);
-  const pin = document.getElementById('btn-pin');
-  pin.style.opacity = clickThrough ? '0.5' : '1';
+  applyClickThroughUi();
   setAutoUi(autoOn);
   setStatus('idle', autoOn ? autoIdleText() : 'Готов');
 }
