@@ -222,7 +222,6 @@ function sendSegment(pcm) {
   vad.busy = true;
   setStatus('transcribe', '⏳ Распознаю речь…');
   window.ghost.transcribe(pcm16, { auto: true }).then((res) => {
-    vad.busy = false;
     const text = res && res.text;
     if (res && res.asked) {
       vad.suppressUntil = Date.now() + suppressMs();
@@ -232,6 +231,10 @@ function sendSegment(pcm) {
     } else if (!text) {
       if (!autoOn) setStatus('idle', 'Не расслышал — попробуй ещё раз');
     }
+  }).catch(() => {
+    if (!autoOn) setStatus('idle', 'Не расслышал — попробуй ещё раз');
+  }).finally(() => {
+    vad.busy = false;
     flushPendingSegment();
   });
 }
@@ -318,9 +321,13 @@ async function stopRecording() {
   const pcm16 = inRate === 16000 ? raw : resample(raw, inRate, 16000);
   setStatus('busy', '⏳ Распознаю речь…');
   vad.suppressUntil = 0;
-  const res = await window.ghost.transcribe(pcm16);
-  const text = res && res.text;
-  if (!text && !autoOn) setStatus('idle', 'Не расслышал — попробуй ещё раз');
+  try {
+    const res = await window.ghost.transcribe(pcm16);
+    const text = res && res.text;
+    if (!text && !autoOn) setStatus('idle', 'Не расслышал — попробуй ещё раз');
+  } catch {
+    if (!autoOn) setStatus('idle', 'Не расслышал — попробуй ещё раз');
+  }
 }
 
 async function startAutoListen() {
@@ -473,7 +480,7 @@ function fillSettings() {
   document.getElementById('s-lang').value = config.whisper.language || 'ru';
   document.getElementById('s-listen').value = (config.audio && config.audio.listenSource) || 'system';
   document.getElementById('s-tts').checked = !!(config.ui && config.ui.tts);
-  document.getElementById('s-protect').checked = config.ui.protectCapture !== false;
+  document.getElementById('s-protect').checked = config.ui.protectCapture === true;
   document.getElementById('s-auto').checked = autoOn;
   document.getElementById('s-sens').value = (config.autoListen && config.autoListen.sensitivity) || 35;
   document.getElementById('s-opacity').value = Math.round((config.ui.opacity || 0.95) * 100);

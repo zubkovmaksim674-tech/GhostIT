@@ -90,10 +90,18 @@ function startServer() {
   return new Promise((resolve, reject) => {
     const rootDir = path.join(__dirname, 'renderer');
     server = http.createServer((req, res) => {
-      const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+      let urlPath;
+      try {
+        urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+      } catch {
+        res.writeHead(400);
+        res.end('bad request');
+        return;
+      }
       const relative = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
-      const filePath = path.join(rootDir, relative);
-      if (!filePath.startsWith(rootDir)) {
+      const filePath = path.normalize(path.join(rootDir, relative));
+      const relCheck = path.relative(rootDir, filePath);
+      if (relCheck.startsWith('..') || path.isAbsolute(relCheck)) {
         res.writeHead(403);
         res.end('forbidden');
         return;
@@ -245,7 +253,7 @@ function createTray() {
       { type: 'separator' },
       { label: 'Автослушание', type: 'checkbox', checked: !!(cfg.autoListen && cfg.autoListen.enabled), click: (item) => setAutoListen(item.checked) },
       { label: 'Клик сквозь окно', type: 'checkbox', checked: cfg.ui.clickThrough, click: (item) => setClickThrough(item.checked) },
-      { label: 'Скрывать от записи экрана', type: 'checkbox', checked: cfg.ui.protectCapture !== false, click: (item) => applyProtection(item.checked) },
+      { label: 'Скрывать от записи экрана', type: 'checkbox', checked: cfg.ui.protectCapture === true, click: (item) => applyProtection(item.checked) },
       { type: 'separator' },
       { label: 'Выход', click: () => { quitting = true; app.quit(); } }
     ]));
