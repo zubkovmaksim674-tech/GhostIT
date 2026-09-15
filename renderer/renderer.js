@@ -124,6 +124,11 @@ function showQuestion(text) {
 }
 
 function resetAnswer() {
+  if (streamTimer) {
+    clearTimeout(streamTimer);
+    streamTimer = null;
+  }
+  streamBuffer = '';
   answerFull = '';
   answerText.classList.add('placeholder');
   answerText.textContent = '…';
@@ -131,21 +136,45 @@ function resetAnswer() {
   actionsEl.classList.add('hidden');
 }
 
-function appendAnswer(delta) {
-  answerFull += delta;
+let streamBuffer = '';
+let streamTimer = null;
+
+function flushStream() {
+  streamTimer = null;
+  if (!streamBuffer) return;
+  answerFull += streamBuffer;
+  streamBuffer = '';
   answerText.classList.remove('placeholder');
   answerText.innerHTML = renderAnswer(answerFull);
   answerCursor.classList.remove('hidden');
   answerEl.scrollTop = answerEl.scrollHeight;
 }
 
+function appendAnswer(delta) {
+  if (!delta) return;
+  streamBuffer += delta;
+  if (!streamTimer) {
+    streamTimer = setTimeout(flushStream, 90);
+  }
+}
+
+function flushStreamNow() {
+  if (streamTimer) {
+    clearTimeout(streamTimer);
+    streamTimer = null;
+  }
+  flushStream();
+}
+
 function finishAnswer() {
+  flushStreamNow();
   answerCursor.classList.add('hidden');
   actionsEl.classList.remove('hidden');
   if (config && config.ui && config.ui.tts && answerFull) speak(answerFull);
 }
 
 function clearAll() {
+  flushStreamNow();
   answerFull = '';
   qEl.classList.add('hidden');
   answerText.classList.add('placeholder');
@@ -231,7 +260,7 @@ async function startRecording() {
     const stream = await openAudioStream('mic');
     const ctx = new AudioContext();
     const source = ctx.createMediaStreamSource(stream);
-    const node = ctx.createScriptProcessor(4096, 1, 1);
+    const node = ctx.createScriptProcessor(8192, 1, 1);
     const mute = ctx.createGain();
     mute.gain.value = 0;
 
@@ -301,7 +330,7 @@ async function startAutoListen() {
     const stream = await openAudioStream(listenSource);
     const ctx = new AudioContext();
     const source = ctx.createMediaStreamSource(stream);
-    const node = ctx.createScriptProcessor(4096, 1, 1);
+    const node = ctx.createScriptProcessor(8192, 1, 1);
     const mute = ctx.createGain();
     mute.gain.value = 0;
 
@@ -334,9 +363,16 @@ async function startAutoListen() {
       vad.energies.push(energy);
       if (vad.energies.length > 90) vad.energies.shift();
 
-      const sorted = [...vad.energies].sort((a, b) => a - b);
-      const floor = sorted[Math.floor(sorted.length * 0.25)] || 0;
-      const thr = Math.max(vad.threshold, floor * 2.2);
+      let thr = vad.threshold;
+      vad.floorTick = (vad.floorTick || 0) + 1;
+      if (vad.floorTick % 8 === 0) {
+        const sorted = [...vad.energies].sort((a, b) => a - b);
+        const floor = sorted[Math.floor(sorted.length * 0.25)] || 0;
+        thr = Math.max(vad.threshold, floor * 2.2);
+        vad.currentThr = thr;
+      } else if (vad.currentThr !== undefined) {
+        thr = vad.currentThr;
+      }
       const speechNow = energy > thr;
       const now = performance.now();
 

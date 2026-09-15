@@ -116,7 +116,7 @@ html, body {
   background-color: #292b32;
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: var(--border-radius-md);
-  box-shadow: 0 12px 32px rgba(12, 15, 35, 0.45);
+  box-shadow: none;
   color: var(--text-primary);
   overflow: hidden;
   position: relative;
