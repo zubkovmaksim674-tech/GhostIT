@@ -700,7 +700,7 @@ document.getElementById('btn-hist-clear').addEventListener('click', async () => 
 });
 document.getElementById('btn-hist-export').addEventListener('click', async () => {
   const file = await window.ghost.exportHistory();
-  setStatus('ok', 'История сохранена: ' + file);
+  if (file) setStatus('ok', 'История сохранена: ' + file);
 });
 
 function setAutoUi(enabled) {

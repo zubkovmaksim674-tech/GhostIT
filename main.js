@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain, globalShortcut, clipboard, session, shell, desktopCapturer, protocol } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain, globalShortcut, clipboard, session, shell, desktopCapturer, protocol, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -828,7 +828,7 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
     file: historyFile()
   }));
 
-  ipcMain.handle('get-history-items', () => history.slice(-40));
+  ipcMain.handle('get-history-items', () => history.slice(-60));
 
   ipcMain.handle('clear-history', () => {
     history = [];
@@ -837,7 +837,7 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
     return true;
   });
 
-  ipcMain.handle('export-history', () => {
+  ipcMain.handle('export-history', async () => {
     const lines = [];
     lines.push('GhostIT — история сессии');
     lines.push('Сохранено: ' + new Date().toLocaleString('ru-RU'));
@@ -851,9 +851,15 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
       lines.push('');
     }
     const documents = app.getPath('documents');
-    const file = path.join(documents, 'GhostIT-история.txt');
-    fs.writeFileSync(file, lines.join('\n'), 'utf8');
-    return file;
+    const defaultFile = path.join(documents, 'GhostIT-история.txt');
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      title: 'Сохранить историю',
+      defaultPath: defaultFile,
+      filters: [{ name: 'Текст', extensions: ['txt'] }]
+    });
+    if (canceled || !filePath) return null;
+    fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
+    return filePath;
   });
 }
 
