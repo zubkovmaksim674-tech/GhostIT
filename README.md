@@ -13,7 +13,10 @@ QA-ассистент для Windows: слушает вопросы по гор�
 
 ## Скачать
 
-Самая свежая версия: [releases/latest](https://github.com/zubkovmaksim674-tech/ghostqa/releases/latest) — файл `GhostQA.exe` (portable, установка не нужна).
+Самая свежая версия: [releases/latest](https://github.com/zubkovmaksim674-tech/ghostqa/releases/latest)
+
+- **GhostQA-Setup-x.y.z.exe** — установщик: выбери папку установки, ярлыки на рабочем столе и в меню «Пуск» создадутся автоматически
+- **GhostQA.exe** — portable: один файл, можно запустить откуда угодно, умеет самообновляться
 
 > ⚠️ Windows может показать предупреждение SmartScreen («Необходимо проявить осторожность»), т.к. exe не подписан кодовой подписью. Нажми «Подробнее» → «Выполнить в любом случае».
 

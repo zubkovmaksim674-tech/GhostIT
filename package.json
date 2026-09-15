@@ -1,14 +1,15 @@
 {
   "name": "ghost-qa",
   "productName": "GhostQA",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "QA-Р°СЃСЃРёСЃС‚РµРЅС‚: СЃР»СѓС€Р°РµС‚ РІРѕРїСЂРѕСЃС‹ РїРѕ РіРѕСЂСЏС‡РµР№ РєР»Р°РІРёС€Рµ Рё РјРіРЅРѕРІРµРЅРЅРѕ РІС‹РґР°С‘С‚ РѕС‚РІРµС‚С‹ РІ РѕРІРµСЂР»РµРµ РїРѕРІРµСЂС… РІСЃРµС… РѕРєРѕРЅ",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "smoke": "electron . --smoke",
     "rebuild": "electron-rebuild -f -w uiohook-napi",
-    "dist": "electron-builder --win portable"
+    "dist": "electron-builder --win portable nsis",
+    "release": "node scripts/release.js"
   },
   "author": "",
   "license": "MIT",
@@ -28,15 +29,28 @@
       "**/*.node",
       "**/prebuilds/**"
     ],
-    "compression": "store",
+    "compression": "normal",
     "directories": {
       "output": "dist"
     },
     "win": {
-      "target": "portable"
+      "target": [
+        "portable",
+        "nsis"
+      ]
     },
     "portable": {
       "artifactName": "GhostQA.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "GhostQA",
+      "artifactName": "GhostQA-Setup-${version}.exe",
+      "uninstallDisplayName": "GhostQA"
     }
   },
   "devDependencies": {

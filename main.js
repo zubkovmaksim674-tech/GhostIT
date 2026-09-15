@@ -700,8 +700,8 @@ function registerIpc() {
     const dest = path.join(app.getPath('temp'), 'GhostQA-new.exe');
     if (!fs.existsSync(dest)) return { ok: false, error: 'РЎРєР°С‡Р°РЅРЅС‹Р№ С„Р°Р№Р» РЅРµ РЅР°Р№РґРµРЅ' };
     if (!process.env.PORTABLE_EXECUTABLE_FILE) {
-      shell.showItemInFolder(dest);
-      return { ok: false, error: 'РђРІС‚РѕР·Р°РјРµРЅР° РґРѕСЃС‚СѓРїРЅР° С‚РѕР»СЊРєРѕ РІ portable-СЃР±РѕСЂРєРµ' };
+      shell.openExternal(updater.RELEASES_PAGE);
+      return { ok: false, fallback: 'open-page', error: 'Открыта страница релизов — скачайте установщик' };
     }
     updater.installUpdate(dest);
     quitting = true;
@@ -867,15 +867,6 @@ async function boot() {
       callback({});
     }
   }, { useSystemPicker: false });
-
-  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
-    desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1, height: 1 } })
-      .then((sources) => {
-        if (sources.length) callback({ video: sources[0], audio: 'loopback' });
-        else callback({});
-      })
-      .catch(() => callback({}));
-  });
 
   setTimeout(async () => {
     try {

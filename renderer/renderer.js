@@ -695,7 +695,7 @@ btnUpdate.addEventListener('click', async () => {
     const res = await window.ghost.installUpdate();
     if (res && !res.ok) {
       updateText.textContent = res.error || 'Не удалось установить обновление';
-      btnUpdate.textContent = 'Показать файл';
+      btnUpdate.textContent = res.fallback === 'open-page' ? 'На странице релизов' : 'Показать файл';
       updatePhase = 'show';
     }
   } else if (updatePhase === 'show') {
