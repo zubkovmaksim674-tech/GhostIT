@@ -35,7 +35,7 @@ GhostIT — оверлей, который не отвлекает: ответы
 
 ## Скачать
 
-Самая свежая версия: [releases/latest](https://github.com/zubkovmaksim674-tech/ghostqa/releases/latest)
+Самая свежая версия: [releases/latest](https://github.com/zubkovmaksim674-tech/ghostit/releases/latest)
 
 - **GhostIT-Setup-x.y.z.exe** — установщик: выбери папку установки, ярлыки создадутся автоматически
 - **GhostIT.exe** — portable: один файл, можно запустить откуда угодно, умеет самообновляться
