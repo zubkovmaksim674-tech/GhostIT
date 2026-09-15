@@ -1,7 +1,6 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain, globalShortcut, clipboard, session, shell, desktopCapturer } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain, globalShortcut, clipboard, session, shell, desktopCapturer, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const http = require('http');
 const { spawn } = require('child_process');
 const config = require('./lib/config');
 const { streamAnswer } = require('./lib/llm');
@@ -10,6 +9,10 @@ const updater = require('./lib/updater');
 const harness = require('./test/harness');
 
 app.disableHardwareAcceleration();
+
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'ghostit', privileges: { standard: true, secure: true, supportFetchAPI: true } }
+]);
 
 const AUTH_URL = process.env.GHOSTIT_AUTH_URL || 'https://ghostqa-bot.fog-map-concept.workers.dev';
 app.commandLine.appendSwitch('enable-usermedia-screen-capturing');
@@ -24,7 +27,6 @@ const AUDIOTEST = process.argv.includes('--audiotest');
 
 let win = null;
 let tray = null;
-let server = null;
 let quitting = false;
 let recording = false;
 let hotkeyMode = 'hold';
@@ -87,49 +89,37 @@ function idleText() {
   return 'Готов';
 }
 
-function startServer() {
-  return new Promise((resolve, reject) => {
-    const rootDir = path.join(__dirname, 'renderer');
-    server = http.createServer((req, res) => {
-      let urlPath;
-      try {
-        urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
-      } catch {
-        res.writeHead(400);
-        res.end('bad request');
-        return;
-      }
-      const relative = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
+function setupProtocol() {
+  const rootDir = path.join(__dirname, 'renderer');
+  const mime = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'text/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.svg': 'image/svg+xml',
+    '.png': 'image/png',
+    '.woff2': 'font/woff2',
+    '.json': 'application/json'
+  };
+  protocol.handle('ghostit', async (request) => {
+    try {
+      const urlPath = decodeURIComponent(new URL(request.url).pathname);
+      const relative = urlPath === '/' || urlPath === '' ? 'index.html' : urlPath.replace(/^\/+/, '');
       const filePath = path.normalize(path.join(rootDir, relative));
       const relCheck = path.relative(rootDir, filePath);
       if (relCheck.startsWith('..') || path.isAbsolute(relCheck)) {
-        res.writeHead(403);
-        res.end('forbidden');
-        return;
+        return new Response('forbidden', { status: 403 });
       }
-      fs.readFile(filePath, (error, data) => {
-        if (error) {
-          res.writeHead(404);
-          res.end('not found');
-          return;
-        }
-        const mime = {
-          '.html': 'text/html; charset=utf-8',
-          '.js': 'text/javascript; charset=utf-8',
-          '.css': 'text/css; charset=utf-8',
-          '.svg': 'image/svg+xml',
-          '.png': 'image/png'
-        }[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
-        res.writeHead(200, { 'Content-Type': mime });
-        res.end(data);
+      const data = await fs.promises.readFile(filePath);
+      return new Response(data, {
+        headers: { 'Content-Type': mime[path.extname(filePath).toLowerCase()] || 'application/octet-stream' }
       });
-    });
-    server.on('error', reject);
-    server.listen(0, '127.0.0.1', () => resolve(server.address().port));
+    } catch {
+      return new Response('bad request', { status: 400 });
+    }
   });
 }
 
-function createWindow(port) {
+function createWindow() {
   const cfg = config.load();
   const area = screen.getPrimaryDisplay().workArea;
   const width = 500;
@@ -184,7 +174,7 @@ function createWindow(port) {
   win.setContentProtection(cfg.ui.protectCapture === true);
   if (cfg.ui.clickThrough) win.setIgnoreMouseEvents(true, { forward: true });
 
-  win.loadURL(`http://127.0.0.1:${port}/index.html`);
+  win.loadURL('ghostit://app/index.html');
 
   let moveTimer = null;
   win.on('move', () => {
@@ -876,8 +866,8 @@ async function boot() {
   app.setAppUserModelId('GhostIT');
   const cfg = config.load();
   history = loadHistory();
-  const port = await startServer();
-  createWindow(port);
+  setupProtocol();
+  createWindow();
   createTray();
   setupHotkeys();
   registerIpc();
@@ -940,6 +930,5 @@ if (!gotLock) {
   app.on('will-quit', () => {
     globalShortcut.unregisterAll();
     if (worker && !worker.killed) worker.kill();
-    if (server) server.close();
   });
 }
