@@ -795,7 +795,7 @@ async function startUpdateDownload() {
   updatePhase = 'downloading';
   btnUpdate.textContent = '…';
   btnUpdate.disabled = true;
-  const result = await window.ghost.downloadUpdate(updateInfoData.url);
+  const result = await window.ghost.downloadUpdate(updateInfoData.url, updateInfoData.digest);
   if (!result || !result.ok) {
     updatePhase = 'idle';
     btnUpdate.textContent = 'Обновить';

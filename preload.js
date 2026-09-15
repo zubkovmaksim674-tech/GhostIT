@@ -22,7 +22,7 @@ contextBridge.exposeInMainWorld('ghost', {
   clearHistory: () => ipcRenderer.invoke('clear-history'),
   exportHistory: () => ipcRenderer.invoke('export-history'),
   checkUpdate: () => ipcRenderer.invoke('update-check'),
-  downloadUpdate: (url) => ipcRenderer.invoke('update-download', url),
+  downloadUpdate: (url, digest) => ipcRenderer.invoke('update-download', url, digest),
   installUpdate: () => ipcRenderer.invoke('update-install'),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   quit: () => ipcRenderer.invoke('quit'),

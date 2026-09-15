@@ -781,12 +781,12 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
     }
   });
 
-  ipcMain.handle('update-download', async (event, url) => {
+  ipcMain.handle('update-download', async (event, url, digest) => {
     const dest = path.join(app.getPath('temp'), 'GhostIT-new.exe');
     try {
       await updater.downloadUpdate(url, dest, (percent) => {
         sendToRenderer('update-progress', { phase: 'download', percent });
-      });
+      }, digest);
       sendToRenderer('update-progress', { phase: 'done' });
       return { ok: true, file: dest };
     } catch (error) {
