@@ -296,7 +296,7 @@ async function stopRecording() {
 
 async function startAutoListen() {
   if (vad.active) return;
-  const listenSource = (config && config.audio && config.audio.listenSource) || 'mic';
+  const listenSource = (config && config.audio && config.audio.listenSource) || 'system';
   try {
     const stream = await openAudioStream(listenSource);
     const ctx = new AudioContext();
@@ -435,7 +435,7 @@ function fillSettings() {
   document.getElementById('s-combo').value = config.hotkey.combo || 'ctrl+shift+space';
   document.getElementById('s-whisper').value = config.whisper.model || 'Xenova/whisper-small';
   document.getElementById('s-lang').value = config.whisper.language || 'ru';
-  document.getElementById('s-listen').value = (config.audio && config.audio.listenSource) || 'mic';
+  document.getElementById('s-listen').value = (config.audio && config.audio.listenSource) || 'system';
   document.getElementById('s-tts').checked = !!(config.ui && config.ui.tts);
   document.getElementById('s-protect').checked = config.ui.protectCapture !== false;
   document.getElementById('s-auto').checked = autoOn;
@@ -456,7 +456,7 @@ function closeSettings() {
 async function saveSettings() {
   const opacity = Math.max(50, Math.min(100, Number(document.getElementById('s-opacity').value) || 95)) / 100;
   const sensitivity = Math.max(5, Math.min(90, Number(document.getElementById('s-sens').value) || 35));
-  const prevListen = (config && config.audio && config.audio.listenSource) || 'mic';
+  const prevListen = (config && config.audio && config.audio.listenSource) || 'system';
   const patch = {
     api: {
       baseUrl: document.getElementById('s-baseurl').value.trim(),
