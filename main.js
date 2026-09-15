@@ -530,25 +530,43 @@ function handleWorkerMessage(line) {
   else item.resolve(message);
 }
 
+const CALL_TIMEOUTS = {
+  ping: 30000,
+  check: 30000,
+  load: 30 * 60 * 1000,
+  transcribe: 5 * 60 * 1000
+};
+
 function workerCall(type, payload) {
   ensureWorker();
   const id = ++msgId;
   return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });
-    worker.stdin.write(JSON.stringify({ id, type, ...payload }) + '\n');
+    const { audio, ...rest } = payload || {};
+    const header = { id, type, ...rest };
+    let line = JSON.stringify(header);
+    let binary = null;
+    if (audio instanceof Float32Array) {
+      header.audioBytes = audio.byteLength;
+      line = JSON.stringify(header);
+      binary = Buffer.from(audio.buffer, audio.byteOffset, audio.byteLength);
+    }
+    worker.stdin.write(line + '\n');
+    if (binary) worker.stdin.write(binary);
+    const timeoutMs = CALL_TIMEOUTS[type] || 180000;
     setTimeout(() => {
       if (pending.has(id)) {
         pending.delete(id);
         reject(new Error('Таймаут распознавания'));
       }
-    }, 180000);
+    }, timeoutMs);
   });
 }
 
 async function transcribe(pcm) {
   const cfg = config.load();
   const result = await workerCall('transcribe', {
-    audio: Array.from(pcm),
+    audio: pcm,
     model: cfg.whisper.model,
     language: cfg.whisper.language,
     cacheDir: path.join(app.getPath('userData'), 'models')

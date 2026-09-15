@@ -1,4 +1,3 @@
-const readline = require('readline');
 const fs = require('fs');
 const path = require('path');
 
@@ -64,39 +63,75 @@ async function listModelFiles(modelId) {
   if (!Array.isArray(files)) throw new Error('ModelScope file list: bad response');
   return files
     .filter((file) => file.Type === 'blob' && file.Size > 0)
-    .map((file) => file.Path)
-    .filter(isModelFile);
+    .map((file) => ({ path: file.Path, size: Number(file.Size) || 0 }))
+    .filter((file) => isModelFile(file.path));
 }
 
-async function downloadFile(url, dest, label) {
+const activeDownloads = new Map();
+
+function ensureFileDownloaded(url, dest, label, expectedSize) {
+  if (fs.existsSync(dest)) return Promise.resolve();
+  const inFlight = activeDownloads.get(dest);
+  if (inFlight) return inFlight;
+  const promise = downloadFile(url, dest, label, expectedSize).finally(() => {
+    activeDownloads.delete(dest);
+  });
+  activeDownloads.set(dest, promise);
+  return promise;
+}
+
+async function downloadFile(url, dest, label, expectedSize) {
   let lastError = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
+    const part = dest + '.part';
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(600000) });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const total = Number(response.headers.get('content-length')) || 0;
+      const start = fs.existsSync(part) ? fs.statSync(part).size : 0;
+      const headers = {};
+      if (start > 0) headers.Range = `bytes=${start}-`;
+      const response = await fetch(url, { headers, signal: AbortSignal.timeout(600000) });
+      if (start > 0 && response.status === 416) {
+        if (expectedSize && fs.statSync(part).size === expectedSize) {
+          fs.renameSync(part, dest);
+          return expectedSize;
+        }
+        fs.unlinkSync(part);
+        continue;
+      }
+      if (!response.ok && response.status !== 206) {
+        if (start > 0) fs.unlinkSync(part);
+        throw new Error(`HTTP ${response.status}`);
+      }
       if (!response.body || !response.body.getReader) {
         const buffer = Buffer.from(await response.arrayBuffer());
         fs.mkdirSync(path.dirname(dest), { recursive: true });
         fs.writeFileSync(dest, buffer);
-        return total;
+        return buffer.length;
       }
       const reader = response.body.getReader();
-      let received = 0;
-      const chunks = [];
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      const out = fs.createWriteStream(part, { flags: 'a' });
+      const outError = new Promise((_, reject) => out.on('error', reject));
+      let received = start;
+      const total = start + (Number(response.headers.get('content-length')) || 0);
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        chunks.push(Buffer.from(value));
-        received += value.length;
+        const chunk = Buffer.from(value);
+        if (!out.write(chunk)) await new Promise((resolve) => out.once('drain', resolve));
+        received += chunk.length;
         if (total) {
           send({ type: 'download-progress', file: label, percent: Math.round((received / total) * 100), total });
         }
       }
-      const buffer = Buffer.concat(chunks);
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.writeFileSync(dest, buffer);
-      return buffer.length;
+      await new Promise((resolve) => out.end(resolve));
+      await Promise.race([new Promise((resolve) => out.on('finish', resolve)), outError]);
+      if (expectedSize && received !== expectedSize) {
+        log(`size mismatch for ${label}: got ${received}, expected ${expectedSize}`);
+        fs.unlinkSync(part);
+        continue;
+      }
+      fs.renameSync(part, dest);
+      return received;
     } catch (error) {
       lastError = error;
       log(`download attempt ${attempt}/3 failed for ${label}: ${error.message}`);
@@ -109,15 +144,23 @@ async function downloadFile(url, dest, label) {
 async function ensureModelFiles(modelId, cacheDir) {
   const dir = modelDir(cacheDir, modelId);
   const files = await listModelFiles(modelId);
-  let skipped = 0;
-  for (const file of files) {
-    const dest = path.join(dir, ...file.split('/'));
-    if (fs.existsSync(dest)) continue;
-    const url = `${MODELSCOPE}/models/${modelId}/resolve/master/${file}`;
-    await downloadFile(url, dest, file);
-    skipped++;
-  }
-  log(`model files ready (${files.length - skipped} from cache, downloaded ${skipped})`);
+  const jobs = files.map((file) => {
+    const dest = path.join(dir, ...file.path.split('/'));
+    const url = `${MODELSCOPE}/models/${modelId}/resolve/master/${file.path}`;
+    return ensureFileDownloaded(url, dest, file.path, file.size);
+  });
+  const concurrency = 3;
+  let next = 0;
+  const workers = [];
+  const run = async () => {
+    while (next < jobs.length) {
+      const job = jobs[next++];
+      await job;
+    }
+  };
+  for (let i = 0; i < Math.min(concurrency, jobs.length); i++) workers.push(run());
+  await Promise.all(workers);
+  log(`model files ready (${files.length} total)`);
 }
 
 async function loadModel(options) {
@@ -179,7 +222,7 @@ async function handle(message) {
 
     if (type === 'transcribe') {
       const pipe = await loadModel({ model: message.model, cacheDir: message.cacheDir });
-      const audio = Float32Array.from(message.audio || []);
+      const audio = message.audio || new Float32Array(0);
       const started = Date.now();
       const result = await pipe(audio, {
         language: resolveLanguage(message.language),
@@ -201,17 +244,45 @@ async function handle(message) {
   }
 }
 
-const rl = readline.createInterface({ input: process.stdin });
-rl.on('line', (line) => {
-  const trimmed = line.trim();
-  if (!trimmed) return;
-  let message;
-  try {
-    message = JSON.parse(trimmed);
-  } catch {
-    return;
+let buffer = Buffer.alloc(0);
+let pendingHeader = null;
+
+function dispatch(message) {
+  handle(message).catch((error) => {
+    log(`dispatch error: ${error && error.message ? error.message : error}`);
+  });
+}
+
+process.stdin.on('data', (chunk) => {
+  buffer = buffer.length ? Buffer.concat([buffer, chunk]) : chunk;
+  while (true) {
+    if (pendingHeader) {
+      if (buffer.length < pendingHeader.audioBytes) break;
+      const audioBuf = buffer.subarray(0, pendingHeader.audioBytes);
+      buffer = buffer.subarray(pendingHeader.audioBytes);
+      const message = pendingHeader;
+      pendingHeader = null;
+      message.audio = new Float32Array(audioBuf.buffer, audioBuf.byteOffset, audioBuf.byteLength / 4);
+      dispatch(message);
+      continue;
+    }
+    const nl = buffer.indexOf(0x0a);
+    if (nl === -1) break;
+    const line = buffer.subarray(0, nl).toString('utf8');
+    buffer = buffer.subarray(nl + 1);
+    if (!line.trim()) continue;
+    let message;
+    try {
+      message = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (message.audioBytes && message.audioBytes > 0) {
+      pendingHeader = message;
+      continue;
+    }
+    dispatch(message);
   }
-  handle(message);
 });
 
 process.on('uncaughtException', (error) => {
