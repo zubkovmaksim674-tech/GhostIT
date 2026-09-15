@@ -19,8 +19,7 @@ function logResult(log, tag, payload) {
 function startFakeLLM() {
   return new Promise((resolve) => {
     const fake = http.createServer((req, res) => {
-      let body = '';
-      req.on('data', (chunk) => { body += chunk; });
+      req.resume();
       req.on('end', () => {
         if (req.url.includes('/chat/completions')) {
           res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });

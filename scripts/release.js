@@ -43,7 +43,7 @@ try {
     try {
       execSync('git pull --ff-only', { cwd: root, stdio: 'inherit' });
       console.log('🔄 git pull выполнен');
-    } catch (e) {
+    } catch {
       console.warn('⚠️ git pull не удался (возможно, незакоммиченные изменения). Продолжаю со сборочным деревом как есть.');
     }
   }

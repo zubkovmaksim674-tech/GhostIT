@@ -19,7 +19,6 @@ let answerFull = '';
 let recording = false;
 let clickThrough = false;
 let autoOn = false;
-let mode = 'hold';
 
 const waveLevels = new Array(waveBars.length).fill(3);
 
@@ -574,7 +573,6 @@ async function refreshHistory() {
 
 async function updateModeBadge() {
   const m = await window.ghost.hotkeyMode();
-  mode = m;
   const label = {
     hold: 'hold',
     toggle: 'toggle',

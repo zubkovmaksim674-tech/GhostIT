@@ -31,7 +31,6 @@ let quitting = false;
 let recording = false;
 let hotkeyMode = 'hold';
 let worker = null;
-let workerReady = false;
 let msgId = 0;
 let recordingTimer = null;
 const pending = new Map();
@@ -445,8 +444,6 @@ function setupHotkeys() {
 
 function ensureWorker() {
   if (worker && !worker.killed) return worker;
-  const cfg = config.load();
-  workerReady = false;
   worker = spawn(process.execPath, [path.join(__dirname, 'worker', 'stt.js')], {
     env: {
       ...process.env,
@@ -471,7 +468,6 @@ function ensureWorker() {
   worker.on('exit', (code) => {
     log('stt worker exited:', code);
     worker = null;
-    workerReady = false;
     for (const [id, item] of pending) {
       item.reject(new Error('Процесс распознавания остановился'));
       pending.delete(id);
@@ -504,7 +500,6 @@ function handleWorkerMessage(line) {
   }
 
   if (message.type === 'loaded' && !message.id) {
-    workerReady = true;
     return;
   }
 

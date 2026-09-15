@@ -1,5 +1,4 @@
 const fs = require('fs');
-const path = require('path');
 
 const MOJIBAKE_MARKERS = new Set(
   '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ¤¦§¨©ª«¬®¯°±²³´µ¶·¸¹º»¼½¾¿' +
