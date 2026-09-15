@@ -34,6 +34,18 @@ let recordingTimer = null;
 const pending = new Map();
 let history = [];
 let currentAbort = null;
+let mockPrompt = null;
+let mockPrevHistory = null;
+
+function buildMockPrompt(topic) {
+  const role = topic || 'Middle QA Engineer';
+  return 'Ты — доброжелательный, но требовательный интервьюер на позицию: ' + role + ' (IT-собеседование, русский язык). ' +
+    'Формат строго: одно сообщение = РОВНО ОДИН вопрос, без прелюдий и без перечисления будущих тем. ' +
+    'После ответа кандидата: 1–2 предложения оценки (что сильно, чего не хватило), при необходимости краткий эталон ответа (3–6 пунктов), затем следующий вопрос чуть сложнее. ' +
+    'Если кандидат ответил «не знаю» — дай компактный эталон и следующий вопрос по другой теме. ' +
+    'Темы двигай от базы к специализации и практическим задачам. Пиши коротко: ответ интервьюера максимум 60 слов. ' +
+    'Начни с одной фразы приветствия и первого вопроса.';
+}
 let uiohookRef = null;
 let talkHandlers = null;
 
@@ -556,7 +568,7 @@ async function ask(question) {
       model: cfg.api.model,
       temperature: cfg.api.temperature,
       maxTokens: cfg.api.maxTokens,
-      systemPrompt: cfg.prompt,
+      systemPrompt: mockPrompt || cfg.prompt,
       history,
       question,
       signal: abort.signal
@@ -675,6 +687,24 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
       sendStatus('error', `Ошибка распознавания: ${error.message}`);
       return { text: '', asked: false };
     }
+  });
+
+  ipcMain.handle('mock-toggle', (event, topic) => {
+    if (mockPrompt) {
+      mockPrompt = null;
+      if (mockPrevHistory) { history = mockPrevHistory; mockPrevHistory = null; }
+      sendToRenderer('mock-state', { active: false });
+      sendStatus('idle', idleText());
+      return { active: false };
+    }
+    const cleanTopic = String(topic || '').trim().slice(0, 120);
+    mockPrevHistory = history;
+    history = [];
+    mockPrompt = buildMockPrompt(cleanTopic);
+    sendToRenderer('history-count', 0);
+    sendToRenderer('mock-state', { active: true, topic: cleanTopic });
+    ask('Начинай: одна фраза приветствия и первый вопрос.');
+    return { active: true, topic: cleanTopic };
   });
 
   ipcMain.handle('ask-text', (event, text) => {

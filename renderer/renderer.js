@@ -609,6 +609,26 @@ document.getElementById('btn-send').addEventListener('click', sendManual);
 document.getElementById('manual-q').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') sendManual();
 });
+document.getElementById('btn-mock').addEventListener('click', async () => {
+  const input = document.getElementById('manual-q');
+  const btn = document.getElementById('btn-mock');
+  if (btn.classList.contains('on')) {
+    await window.ghost.mockToggle('');
+    return;
+  }
+  const topic = input.value.trim();
+  input.value = '';
+  const r = await window.ghost.mockToggle(topic);
+  if (r && r.active) {
+    input.placeholder = 'Ответ на вопрос интервьюера:';
+    setStatus('auto', '🎓 Мок-интервью: слушаю и отвечаю по ходу');
+  }
+});
+window.ghost.on('mock-state', (state) => {
+  const btn = document.getElementById('btn-mock');
+  btn.classList.toggle('on', !!state.active);
+  document.getElementById('manual-q').placeholder = state.active ? 'Ответ на вопрос интервьюера:' : 'Вопрос или тема:';
+});
 document.getElementById('btn-dl-model').addEventListener('click', async () => {
   setStatus('busy', '⬇️ Скачиваю модель Whisper… Это займёт несколько минут');
   const result = await window.ghost.downloadModel();

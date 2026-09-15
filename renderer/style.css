@@ -710,3 +710,5 @@ input[type="range"]::-webkit-slider-runnable-track {
 }
 
 .tg-qr { display: flex; justify-content: center; padding: 10px; background: #fff; border-radius: 8px; width: fit-content; margin: 8px auto; }
+
+#btn-mock.on { outline: 1px solid #8ab4ff; color: #8ab4ff; }
