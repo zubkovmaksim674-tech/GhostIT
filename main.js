@@ -5,6 +5,7 @@ const http = require('http');
 const { spawn } = require('child_process');
 const config = require('./lib/config');
 const { streamAnswer } = require('./lib/llm');
+const { isQuestion } = require('./lib/question');
 const updater = require('./lib/updater');
 
 app.disableHardwareAcceleration();
@@ -618,20 +619,26 @@ function registerIpc() {
     return updated;
   });
 
-  ipcMain.handle('transcribe', async (event, pcm) => {
+ipcMain.handle('transcribe', async (event, pcm, options) => {
     try {
-      sendStatus('transcribe', 'вЏі Р Р°СЃРїРѕР·РЅР°СЋ СЂРµС‡СЊвЂ¦');
+      sendStatus('transcribe', '⏳ Распознаю речь…');
       const text = await transcribe(pcm);
       if (!text) {
         sendStatus('idle', idleText());
-        return null;
+        return { text: '', asked: false };
+      }
+      const isAuto = !!(options && options.auto);
+      if (isAuto && !isQuestion(text)) {
+        sendToRenderer('auto-skipped', text);
+        sendStatus('idle', idleText());
+        return { text, asked: false };
       }
       sendToRenderer('question', text);
       ask(text);
-      return text;
+      return { text, asked: true };
     } catch (error) {
-      sendStatus('error', `РћС€РёР±РєР° СЂР°СЃРїРѕР·РЅР°РІР°РЅРёСЏ: ${error.message}`);
-      return null;
+      sendStatus('error', `Ошибка распознавания: ${error.message}`);
+      return { text: '', asked: false };
     }
   });
 
@@ -998,7 +1005,9 @@ if (DOMTEST) {
           res.historyOpens = !document.getElementById('history').classList.contains('hidden');
           try {
             const t0 = await window.ghost.transcribe(new Float32Array(16000));
-            res.transcribeTest = 'ok:' + (t0 === null ? 'null' : String(t0).slice(0, 20));
+            res.transcribeTest = 'ok:' + (t0 && t0.text ? String(t0.text).slice(0, 20) : 'null') + '/asked:' + (t0 && t0.asked);
+            const t1 = await window.ghost.transcribe(new Float32Array(16000), { auto: true });
+            res.transcribeAutoTest = 'asked:' + (t1 && t1.asked) + '/text:' + (t1 && t1.text ? String(t1.text).slice(0, 16) : 'none');
           } catch (e) { res.transcribeTest = 'err:' + e.message; }
           try {
             const sid = await window.ghost.getScreenSourceId();

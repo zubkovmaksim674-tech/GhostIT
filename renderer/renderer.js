@@ -63,7 +63,8 @@ const vad = {
   silenceMs: 1300,
   minSpeechMs: 700,
   busy: false,
-  pending: null
+  pending: null,
+  suppressUntil: 0
 };
 
 function escapeHtml(text) {
@@ -182,14 +183,26 @@ function rms(data) {
   return Math.sqrt(sum / data.length);
 }
 
+function suppressMs() {
+  return (config && config.autoListen && config.autoListen.suppressMs) || 15000;
+}
+
 function sendSegment(pcm) {
   const inRate = vad.ctx.sampleRate;
   const pcm16 = inRate === 16000 ? pcm : resample(pcm, inRate, 16000);
   vad.busy = true;
   setStatus('transcribe', '⏳ Распознаю речь…');
-  window.ghost.transcribe(pcm16).then((text) => {
+  window.ghost.transcribe(pcm16, { auto: true }).then((res) => {
     vad.busy = false;
-    if (!text && !autoOn) setStatus('idle', 'Не расслышал — попробуй ещё раз');
+    const text = res && res.text;
+    if (res && res.asked) {
+      vad.suppressUntil = Date.now() + suppressMs();
+    } else if (res && res.asked === false && autoOn) {
+      setStatus('idle', '🔇 Не вопрос — пропущен');
+      setTimeout(() => { if (autoOn && !recording) setStatus('auto', autoIdleText()); }, 1400);
+    } else if (!text) {
+      if (!autoOn) setStatus('idle', 'Не расслышал — попробуй ещё раз');
+    }
     flushPendingSegment();
   });
 }
@@ -275,7 +288,9 @@ async function stopRecording() {
 
   const pcm16 = inRate === 16000 ? raw : resample(raw, inRate, 16000);
   setStatus('busy', '⏳ Распознаю речь…');
-  const text = await window.ghost.transcribe(pcm16);
+  vad.suppressUntil = 0;
+  const res = await window.ghost.transcribe(pcm16);
+  const text = res && res.text;
   if (!text && !autoOn) setStatus('idle', 'Не расслышал — попробуй ещё раз');
 }
 
@@ -303,6 +318,7 @@ async function startAutoListen() {
 
     node.onaudioprocess = (event) => {
       if (!vad.active || recording) return;
+      if (Date.now() < vad.suppressUntil) return;
       const data = event.inputBuffer.getChannelData(0);
       vad.tail.push(new Float32Array(data));
       vad.tailSamples += data.length;

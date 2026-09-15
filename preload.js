@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('ghost', {
-  transcribe: (pcm) => ipcRenderer.invoke('transcribe', pcm),
+  transcribe: (pcm, options) => ipcRenderer.invoke('transcribe', pcm, options),
   askText: (text) => ipcRenderer.invoke('ask-text', text),
   stop: () => ipcRenderer.invoke('stop-answer'),
   copy: (text) => ipcRenderer.invoke('copy-text', text),
