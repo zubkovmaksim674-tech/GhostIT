@@ -68,10 +68,10 @@ function idleText() {
   const cfg = config.load();
   const mode = hotkeyMode || cfg.hotkey.mode || 'hold';
   const auto = !!(cfg.autoListen && cfg.autoListen.enabled);
-  if (auto) return 'Р“РѕС‚РѕРІ. рџ‘‚ РЎР»СѓС€Р°СЋ РІ С„РѕРЅРµ вЂ” Р·Р°РґР°Р№ РІРѕРїСЂРѕСЃ РіРѕР»РѕСЃРѕРј';
-  if (mode === 'hold') return 'Р“РѕС‚РѕРІ. Р—Р°Р¶РјРё ' + prettyCombo(cfg.hotkey.combo) + ' Рё Р·Р°РґР°Р№ РІРѕРїСЂРѕСЃ';
-  if (mode === 'toggle') return 'Р“РѕС‚РѕРІ. РќР°Р¶РјРё ' + prettyCombo(cfg.hotkey.combo) + ' вЂ” РіРѕРІРѕСЂРё, РЅР°Р¶РјРё РµС‰С‘ СЂР°Р·';
-  return 'Р“РѕС‚РѕРІ';
+  if (auto) return 'Готов. 👂 Слушаю в фоне — задай вопрос голосом';
+  if (mode === 'hold') return 'Готов. Зажми ' + prettyCombo(cfg.hotkey.combo) + ' и задай вопрос';
+  if (mode === 'toggle') return 'Готов. Нажми ' + prettyCombo(cfg.hotkey.combo) + ' — говори, нажми ещё раз';
+  return 'Готов';
 }
 
 function startServer() {
@@ -216,18 +216,18 @@ function createTrayIcon() {
 
 function createTray() {
   tray = new Tray(createTrayIcon());
-  tray.setToolTip('GhostQA вЂ” Р°СЃСЃРёСЃС‚РµРЅС‚ РЅР° СЃРѕР±РµСЃРµРґРѕРІР°РЅРёРё');
+  tray.setToolTip('GhostQA — ассистент на собеседовании');
   const rebuildMenu = () => {
     const cfg = config.load();
     tray.setContextMenu(Menu.buildFromTemplate([
-      { label: 'РџРѕРєР°Р·Р°С‚СЊ / СЃРєСЂС‹С‚СЊ', accelerator: 'Ctrl+Shift+H', click: () => toggleWindow() },
-      { label: 'РќР°СЃС‚СЂРѕР№РєРё', click: () => { showWindow(); sendToRenderer('open-settings'); } },
+      { label: 'Показать / скрыть', accelerator: 'Ctrl+Shift+H', click: () => toggleWindow() },
+      { label: 'Настройки', click: () => { showWindow(); sendToRenderer('open-settings'); } },
       { type: 'separator' },
-      { label: 'РђРІС‚РѕСЃР»СѓС€Р°РЅРёРµ', type: 'checkbox', checked: !!(cfg.autoListen && cfg.autoListen.enabled), click: (item) => setAutoListen(item.checked) },
-      { label: 'РљР»РёРє СЃРєРІРѕР·СЊ РѕРєРЅРѕ', type: 'checkbox', checked: cfg.ui.clickThrough, click: (item) => setClickThrough(item.checked) },
-      { label: 'РЎРєСЂС‹РІР°С‚СЊ РѕС‚ Р·Р°РїРёСЃРё СЌРєСЂР°РЅР°', type: 'checkbox', checked: cfg.ui.protectCapture !== false, click: (item) => applyProtection(item.checked) },
+      { label: 'Автослушание', type: 'checkbox', checked: !!(cfg.autoListen && cfg.autoListen.enabled), click: (item) => setAutoListen(item.checked) },
+      { label: 'Клик сквозь окно', type: 'checkbox', checked: cfg.ui.clickThrough, click: (item) => setClickThrough(item.checked) },
+      { label: 'Скрывать от записи экрана', type: 'checkbox', checked: cfg.ui.protectCapture !== false, click: (item) => applyProtection(item.checked) },
       { type: 'separator' },
-      { label: 'Р’С‹С…РѕРґ', click: () => { quitting = true; app.quit(); } }
+      { label: 'Выход', click: () => { quitting = true; app.quit(); } }
     ]));
   };
   rebuildMenu();
@@ -454,7 +454,7 @@ function ensureWorker() {
     worker = null;
     workerReady = false;
     for (const [id, item] of pending) {
-      item.reject(new Error('РџСЂРѕС†РµСЃСЃ СЂР°СЃРїРѕР·РЅР°РІР°РЅРёСЏ РѕСЃС‚Р°РЅРѕРІРёР»СЃСЏ'));
+      item.reject(new Error('Процесс распознавания остановился'));
       pending.delete(id);
     }
   });
@@ -474,13 +474,13 @@ function handleWorkerMessage(line) {
     const data = message.data;
     if (data.status === 'progress' && data.file) {
       const percent = data.total ? Math.round((data.loaded / data.total) * 100) : 0;
-      sendStatus('transcribe', `в¬‡пёЏ Р—Р°РіСЂСѓР¶Р°СЋ РјРѕРґРµР»СЊ: ${data.file} вЂ” ${percent}%`);
+      sendStatus('transcribe', `⬇️ Загружаю модель: ${data.file} — ${percent}%`);
     }
     return;
   }
 
   if (message.type === 'download-progress') {
-    sendStatus('transcribe', `в¬‡пёЏ РЎРєР°С‡РёРІР°СЋ РјРѕРґРµР»СЊ СЃ ModelScope: ${message.file} вЂ” ${message.percent}%`);
+    sendStatus('transcribe', `⬇️ Скачиваю модель с ModelScope: ${message.file} — ${message.percent}%`);
     return;
   }
 
@@ -490,7 +490,7 @@ function handleWorkerMessage(line) {
   }
 
   if (message.type === 'fatal') {
-    sendStatus('error', `РћС€РёР±РєР° СЂР°СЃРїРѕР·РЅР°РІР°РЅРёСЏ: ${message.message}`);
+    sendStatus('error', `Ошибка распознавания: ${message.message}`);
     return;
   }
 
@@ -511,7 +511,7 @@ function workerCall(type, payload) {
     setTimeout(() => {
       if (pending.has(id)) {
         pending.delete(id);
-        reject(new Error('РўР°Р№РјР°СѓС‚ СЂР°СЃРїРѕР·РЅР°РІР°РЅРёСЏ'));
+        reject(new Error('Таймаут распознавания'));
       }
     }, 180000);
   });
@@ -531,7 +531,7 @@ async function transcribe(pcm) {
 async function ask(question) {
   const cfg = config.load();
   if (!cfg.api.apiKey) {
-    sendStatus('error', 'РќРµС‚ API-РєР»СЋС‡Р° вЂ” РѕС‚РєСЂРѕР№ РЅР°СЃС‚СЂРѕР№РєРё (вљ™) Рё РІСЃС‚Р°РІСЊ РєР»СЋС‡');
+    sendStatus('error', 'Нет API-ключа — открой настройки (⚙) и вставь ключ');
     return null;
   }
 
@@ -539,7 +539,7 @@ async function ask(question) {
   const abort = new AbortController();
   currentAbort = abort;
 
-  sendStatus('thinking', 'рџ’­ Р”СѓРјР°СЋвЂ¦');
+  sendStatus('thinking', '💭 Думаю…');
   let firstChunk = true;
   try {
     const answer = await streamAnswer({
@@ -556,7 +556,7 @@ async function ask(question) {
       onDelta: (delta) => {
         if (firstChunk) {
           firstChunk = false;
-          sendStatus('streaming', 'вњЌпёЏ РћС‚РІРµС‡Р°СЋвЂ¦');
+          sendStatus('streaming', '✍️ Отвечаю…');
         }
         sendToRenderer('answer-chunk', delta);
       },
@@ -575,10 +575,10 @@ async function ask(question) {
   } catch (error) {
     if (error.name === 'AbortError') {
       sendToRenderer('answer-done', null);
-      sendStatus('idle', 'РћСЃС‚Р°РЅРѕРІР»РµРЅРѕ');
+      sendStatus('idle', 'Остановлено');
       return null;
     }
-    sendStatus('error', `РћС€РёР±РєР°: ${error.message}`);
+    sendStatus('error', `Ошибка: ${error.message}`);
     sendToRenderer('answer-error', error.message);
     return null;
   } finally {
@@ -732,7 +732,7 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
 
   ipcMain.handle('update-install', () => {
     const dest = path.join(app.getPath('temp'), 'GhostQA-new.exe');
-    if (!fs.existsSync(dest)) return { ok: false, error: 'РЎРєР°С‡Р°РЅРЅС‹Р№ С„Р°Р№Р» РЅРµ РЅР°Р№РґРµРЅ' };
+    if (!fs.existsSync(dest)) return { ok: false, error: 'Скачанный файл не найден' };
     if (!process.env.PORTABLE_EXECUTABLE_FILE) {
       shell.openExternal(updater.RELEASES_PAGE);
       return { ok: false, fallback: 'open-page', error: 'Открыта страница релизов — скачайте установщик' };
@@ -789,19 +789,19 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
 
   ipcMain.handle('export-history', () => {
     const lines = [];
-    lines.push('GhostQA вЂ” РёСЃС‚РѕСЂРёСЏ СЃРµСЃСЃРёРё');
-    lines.push('РЎРѕС…СЂР°РЅРµРЅРѕ: ' + new Date().toLocaleString('ru-RU'));
+    lines.push('GhostQA — история сессии');
+    lines.push('Сохранено: ' + new Date().toLocaleString('ru-RU'));
     lines.push('');
     const turns = Math.floor(history.length / 2);
     for (let i = 0; i < turns; i++) {
-      lines.push('Р’РѕРїСЂРѕСЃ ' + (i + 1) + ':');
+      lines.push('Вопрос ' + (i + 1) + ':');
       lines.push(history[i * 2].content);
-      lines.push('РћС‚РІРµС‚:');
+      lines.push('Ответ:');
       lines.push(history[i * 2 + 1].content);
       lines.push('');
     }
     const documents = app.getPath('documents');
-    const file = path.join(documents, 'GhostQA-РёСЃС‚РѕСЂРёСЏ.txt');
+    const file = path.join(documents, 'GhostQA-история.txt');
     fs.writeFileSync(file, lines.join('\n'), 'utf8');
     return file;
   });
@@ -816,9 +816,9 @@ function startFakeLLM() {
         if (req.url.includes('/chat/completions')) {
           res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
           const parts = [
-            'REST вЂ” СЌС‚Рѕ Р°СЂС…РёС‚РµРєС‚СѓСЂРЅС‹Р№ СЃС‚РёР»СЊ РґР»СЏ РїРѕСЃС‚СЂРѕРµРЅРёСЏ API, Р° РЅРµ РїСЂРѕС‚РѕРєРѕР».',
-            'РћСЃРЅРѕРІРЅС‹Рµ РїСЂРёРЅС†РёРїС‹: РєР»РёРµРЅС‚-СЃРµСЂРІРµСЂ, stateless, РєСЌС€РёСЂСѓРµРјРѕСЃС‚СЊ, РµРґРёРЅРѕРѕР±СЂР°Р·РЅС‹Р№ РёРЅС‚РµСЂС„РµР№СЃ.',
-            'Р”Р°РЅРЅС‹Рµ РѕР±С‹С‡РЅРѕ РїРµСЂРµРґР°СЋС‚СЃСЏ РІ С„РѕСЂРјР°С‚Рµ JSON.'
+            'REST — это архитектурный стиль для построения API, а не протокол.',
+            'Основные принципы: клиент-сервер, stateless, кэшируемость, единообразный интерфейс.',
+            'Данные обычно передаются в формате JSON.'
           ];
           const chunks = [];
           for (const part of parts) {
@@ -854,7 +854,7 @@ async function runE2E() {
   try {
     const result = await win.webContents.executeJavaScript(`(async () => {
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-      await window.ghost.askText('Р§С‚Рѕ С‚Р°РєРѕРµ REST?');
+      await window.ghost.askText('Что такое REST?');
       await sleep(3500);
       return {
         answer: document.getElementById('answer').textContent.slice(0, 400),
@@ -1037,9 +1037,15 @@ if (DOMTEST) {
             res.transcribeAutoTest = 'asked:' + (t1 && t1.asked) + '/text:' + (t1 && t1.text ? String(t1.text).slice(0, 16) : 'none');
           } catch (e) { res.transcribeTest = 'err:' + e.message; }
           try {
-            const sid = await window.ghost.getScreenSourceId();
-            res.screenSourceTest = sid ? 'ok:' + String(sid).slice(0, 40) : 'null';
+            const stream = await window.openAudioStream('system');
+            const kinds = stream.getTracks().map((t) => t.kind + ':' + t.readyState).join(',');
+            stream.getTracks().forEach((t) => t.stop());
+            res.screenSourceTest = 'ok:' + kinds;
           } catch (e) { res.screenSourceTest = 'err:' + e.message; }
+          try {
+            const s = await window.ghost.tgAuthStart();
+            res.tgAuthTest = s.sid ? 'ok:' + s.code : 'err:' + (s.error || 'no sid');
+          } catch (e) { res.tgAuthTest = 'err:' + e.message; }
           return res;
         })()`);
       } catch (error) {
