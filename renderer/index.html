@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self';">
+<title>GhostQA</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app" class="live-widget">
+
+  <header class="widget-header">
+    <div class="widget-primary-controls">
+      <span id="session-dot" class="session-status-indicator"></span>
+      <button id="btn-record" class="play-pause-button" title="Слушать / остановить (Ctrl+Shift+Space)">▶</button>
+      <button id="btn-wave" class="transcription-wave-button" title="Состояние микрофона">
+        <span class="visual-waveform-container" id="wave-bars">
+          <span class="waveform-bar"></span><span class="waveform-bar"></span><span class="waveform-bar"></span>
+          <span class="waveform-bar"></span><span class="waveform-bar"></span><span class="waveform-bar"></span>
+          <span class="waveform-bar"></span>
+        </span>
+      </button>
+      <span id="mode-badge" class="badge hidden"></span>
+    </div>
+    <span class="spacer"></span>
+    <div class="action-buttons-container">
+      <button id="btn-hold" class="action-button" title="Автослушание (слушать вопросы самому)">🎙 Авто</button>
+    </div>
+    <div class="titlebar-controls">
+      <button id="btn-history" class="titlebar-button" title="История сессии">📜</button>
+      <button id="btn-pin" class="titlebar-button" title="Клик сквозь окно (Ctrl+Shift+K)">🖱</button>
+      <button id="btn-settings" class="titlebar-button" title="Настройки">⚙️</button>
+      <button id="btn-hide" class="titlebar-button close-button" title="Скрыть (Ctrl+Shift+H)">✕</button>
+    </div>
+  </header>
+
+  <div class="status-container">
+    <span id="status-dot" class="status-indicator idle"></span>
+    <span id="status-text" class="status-message">Загрузка…</span>
+  </div>
+
+  <div id="question" class="question-line hidden"></div>
+
+  <div id="answer" class="suggestion-container">
+    <span id="answer-text" class="suggestion-text placeholder">Зажми <b>Ctrl+Shift+Space</b> и задай вопрос голосом — ответ появится здесь. Либо напиши вопрос в поле ниже.</span><span id="answer-cursor" class="cursor-blink hidden">▍</span>
+  </div>
+
+  <div id="answer-actions" class="suggestion-actions hidden">
+    <button id="btn-copy" class="suggestion-action">📋 Копировать</button>
+    <button id="btn-context" class="suggestion-action" title="Очистить память предыдущих вопросов">🧹 Контекст</button>
+    <button id="btn-clear" class="suggestion-action">🧹 Очистить</button>
+    <button id="btn-stop" class="suggestion-action danger">⏹ Остановить</button>
+  </div>
+
+  <div class="manual-input-container">
+    <input id="manual-q" class="manual-input" type="text" placeholder="Введи вопрос…" autocomplete="off">
+    <button id="btn-send" class="send-button" title="Отправить (Enter)">Отправить</button>
+  </div>
+
+  <div id="settings" class="settings-panel hidden">
+    <div class="panel-header">
+      <span class="panel-title">Настройки</span>
+      <button id="btn-settings-close" class="titlebar-button" title="Закрыть">✕</button>
+    </div>
+
+    <div class="section-label">Подключение</div>
+    <div class="settings-card">
+      <label>Base URL API<input id="s-baseurl" type="text" spellcheck="false"></label>
+      <label>API-ключ<input id="s-apikey" type="password" spellcheck="false"></label>
+      <label>Модель<input id="s-model" type="text" spellcheck="false"></label>
+      <label>Системный промпт<textarea id="s-prompt" rows="3"></textarea></label>
+    </div>
+
+    <div class="section-label">Активация</div>
+    <div class="settings-card">
+      <label>Режим активации<select id="s-mode">
+        <option value="hold">Клавиша (зажать и говорить)</option>
+        <option value="toggle">Клавиша (нажать — говорить — нажать)</option>
+        <option value="auto">Автослушание (без клавиши)</option>
+        <option value="hold+auto">Клавиша + автослушание</option>
+      </select></label>
+      <label>Горячая клавиша<input id="s-combo" type="text" placeholder="Ctrl+Shift+Space" spellcheck="false"></label>
+    </div>
+
+    <div class="section-label">Распознавание речи</div>
+    <div class="settings-card">
+      <label>Модель Whisper<select id="s-whisper">
+        <option value="Xenova/whisper-tiny">tiny — быстрее, хуже русский</option>
+        <option value="Xenova/whisper-base">base — быстрый</option>
+        <option value="Xenova/whisper-small">small — сбалансированный</option>
+        <option value="Xenova/whisper-medium">medium — точный, медленный</option>
+      </select></label>
+      <label>Язык речи<select id="s-lang">
+        <option value="ru">Русский</option>
+        <option value="auto">Автоопределение</option>
+        <option value="en">English</option>
+      </select></label>
+      <div class="settings-actions">
+        <button id="btn-dl-model" class="suggestion-action">⬇️ Скачать модель</button>
+      </div>
+    </div>
+
+    <div class="section-label">Интерфейс</div>
+    <div class="settings-card">
+      <label class="row"><input id="s-tts" type="checkbox"> Озвучивать ответ голосом</label>
+      <label class="row"><input id="s-protect" type="checkbox"> Скрывать от записи экрана</label>
+      <label class="row"><input id="s-auto" type="checkbox"> Автослушание включено</label>
+      <label class="row">Чувствительность автослушания<input id="s-sens" type="range" min="5" max="90" value="35"></label>
+      <label class="row">Прозрачность<input id="s-opacity" type="range" min="50" max="100" value="95"></label>
+    </div>
+
+    <div class="settings-actions">
+      <button id="btn-save" class="suggestion-action primary">💾 Сохранить</button>
+    </div>
+    <div class="muted small">«Скрывать от записи экрана» — окно не будет видно в записи видео и демонстрации экрана (Windows WDA_EXCLUDEFROMCAPTURE), а тебе останется видимым. Модель Whisper скачивается один раз (~250 МБ для small) с зеркала ModelScope и работает офлайн.</div>
+  </div>
+
+  <div id="history" class="history-panel hidden">
+    <div class="panel-header">
+      <span class="panel-title">История сессии</span>
+      <span id="history-count" class="panel-subtitle"></span>
+    </div>
+    <div id="history-list" class="history-list"></div>
+    <div class="settings-actions">
+      <button id="btn-hist-export" class="suggestion-action">💾 В файл</button>
+      <button id="btn-hist-clear" class="suggestion-action danger">🗑 Очистить</button>
+      <button id="btn-hist-close" class="suggestion-action">Закрыть</button>
+    </div>
+    <div class="muted small">Вопросы и ответы сохраняются автоматически. «В файл» сохранит историю в «Документы → GhostQA-история.txt».</div>
+  </div>
+
+</div>
+<script src="renderer.js"></script>
+</body>
+</html>
