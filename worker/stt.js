@@ -258,7 +258,7 @@ process.stdin.on('data', (chunk) => {
   while (true) {
     if (pendingHeader) {
       if (buffer.length < pendingHeader.audioBytes) break;
-      const audioBuf = buffer.subarray(0, pendingHeader.audioBytes);
+      const audioBuf = Buffer.from(buffer.subarray(0, pendingHeader.audioBytes));
       buffer = buffer.subarray(pendingHeader.audioBytes);
       const message = pendingHeader;
       pendingHeader = null;
