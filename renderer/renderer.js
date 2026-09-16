@@ -195,13 +195,29 @@ function concatChunks(chunks, length) {
 
 function resample(data, fromRate, toRate) {
   const ratio = fromRate / toRate;
-  const out = new Float32Array(Math.max(1, Math.round(data.length / ratio)));
+  if (ratio === 1) return data;
+  if (ratio < 1) {
+    const out = new Float32Array(Math.max(1, Math.round(data.length / ratio)));
+    for (let i = 0; i < out.length; i++) {
+      const pos = i * ratio;
+      const i0 = Math.floor(pos);
+      const i1 = Math.min(i0 + 1, data.length - 1);
+      const frac = pos - i0;
+      out[i] = data[i0] * (1 - frac) + data[i1] * frac;
+    }
+    return out;
+  }
+  const out = new Float32Array(Math.max(1, Math.floor(data.length / ratio)));
   for (let i = 0; i < out.length; i++) {
-    const pos = i * ratio;
-    const i0 = Math.floor(pos);
-    const i1 = Math.min(i0 + 1, data.length - 1);
-    const frac = pos - i0;
-    out[i] = data[i0] * (1 - frac) + data[i1] * frac;
+    const start = i * ratio;
+    const end = Math.min(start + ratio, data.length);
+    let sum = 0;
+    let count = 0;
+    for (let j = Math.floor(start); j < end; j++) {
+      sum += data[j];
+      count++;
+    }
+    out[i] = count ? sum / count : 0;
   }
   return out;
 }
@@ -216,6 +232,11 @@ function suppressMs() {
   return (config && config.autoListen && config.autoListen.suppressMs) || 15000;
 }
 
+function extendSuppress(ms) {
+  const until = Date.now() + ms;
+  vad.suppressUntil = Math.max(vad.suppressUntil || 0, until);
+}
+
 function sendSegment(pcm) {
   const inRate = vad.ctx.sampleRate;
   const pcm16 = inRate === 16000 ? pcm : resample(pcm, inRate, 16000);
@@ -224,7 +245,7 @@ function sendSegment(pcm) {
   window.ghost.transcribe(pcm16, { auto: true }).then((res) => {
     const text = res && res.text;
     if (res && res.asked) {
-      vad.suppressUntil = Date.now() + suppressMs();
+      extendSuppress(suppressMs());
     } else if (res && res.asked === false && autoOn) {
       setStatus('idle', '🔇 Не вопрос — пропущен');
       setTimeout(() => { if (autoOn && !recording) setStatus('auto', autoIdleText()); }, 1400);
@@ -337,19 +358,29 @@ async function startAutoListen() {
     const stream = await openAudioStream(listenSource);
     const ctx = new AudioContext();
     const source = ctx.createMediaStreamSource(stream);
-    const node = ctx.createScriptProcessor(8192, 1, 1);
+    const node = ctx.createScriptProcessor(4096, 1, 1);
     const mute = ctx.createGain();
     mute.gain.value = 0;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 250;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 3400;
 
     vad.ctx = ctx;
     vad.source = source;
     vad.node = node;
+    vad.filters = [hp, lp];
     vad.stream = stream;
     vad.tail = [];
     vad.tailSamples = 0;
     vad.energies = [];
     vad.speechActive = false;
     vad.speechStartPos = 0;
+    vad.speechHits = 0;
+    vad.currentThr = undefined;
+    vad.floorTick = 0;
     vad.threshold = thresholdFromConfig();
 
     node.onaudioprocess = (event) => {
@@ -359,20 +390,21 @@ async function startAutoListen() {
       vad.tail.push(new Float32Array(data));
       vad.tailSamples += data.length;
 
-      const maxTail = Math.floor(ctx.sampleRate * 8);
+      const maxTail = Math.floor(ctx.sampleRate * 12);
       while (vad.tailSamples > maxTail) {
         vad.tailSamples -= vad.tail[0].length;
         vad.tail.shift();
+        if (vad.speechStartPos > 0) vad.speechStartPos--;
       }
 
       const energy = rms(data);
       pushWave(vad.speechActive ? Math.min(1, energy * 10) : Math.min(1, energy * 4));
       vad.energies.push(energy);
-      if (vad.energies.length > 90) vad.energies.shift();
+      if (vad.energies.length > 110) vad.energies.shift();
 
       let thr = vad.threshold;
       vad.floorTick = (vad.floorTick || 0) + 1;
-      if (vad.floorTick % 8 === 0) {
+      if (vad.floorTick % 4 === 0) {
         const sorted = [...vad.energies].sort((a, b) => a - b);
         const floor = sorted[Math.floor(sorted.length * 0.25)] || 0;
         thr = Math.max(vad.threshold, floor * 2.2);
@@ -383,9 +415,12 @@ async function startAutoListen() {
       const speechNow = energy > thr;
       const now = performance.now();
 
-      if (!vad.speechActive && speechNow) {
+      if (speechNow) vad.speechHits++;
+      else vad.speechHits = 0;
+
+      if (!vad.speechActive && vad.speechHits >= 2) {
         vad.speechActive = true;
-        vad.speechStartPos = Math.max(0, vad.tail.length - 3);
+        vad.speechStartPos = Math.max(0, vad.tail.length - 6);
         vad.lastSpeechMs = now;
       } else if (vad.speechActive && speechNow) {
         vad.lastSpeechMs = now;
@@ -394,7 +429,9 @@ async function startAutoListen() {
       }
     };
 
-    source.connect(node);
+    source.connect(hp);
+    hp.connect(lp);
+    lp.connect(node);
     node.connect(mute);
     mute.connect(ctx.destination);
     vad.active = true;
@@ -440,6 +477,8 @@ async function stopAutoListen() {
   try {
     vad.node.disconnect();
     vad.source.disconnect();
+    if (vad.filters) vad.filters.forEach((f) => { try { f.disconnect(); } catch {} });
+    vad.filters = null;
   } catch {}
   if (vad.stream) vad.stream.getTracks().forEach((track) => track.stop());
   try { if (vad.ctx) await vad.ctx.close(); } catch {}
@@ -464,6 +503,10 @@ function speak(text) {
     const lang = config && config.whisper && config.whisper.language === 'ru' ? 'ru-RU' : 'en-US';
     utterance.lang = lang;
     utterance.rate = 1.05;
+    const estMs = Math.max(3000, Math.round(String(text).length * 80) + 1500);
+    utterance.onstart = () => extendSuppress(estMs);
+    utterance.onend = () => extendSuppress(900);
+    utterance.onerror = () => extendSuppress(900);
     window.speechSynthesis.speak(utterance);
   } catch {}
 }
@@ -870,6 +913,7 @@ async function sendManual() {
 
 window.ghost.on('status', (payload) => {
   if (!payload || !payload.state || !payload.text) return;
+  if (payload.state === 'thinking' || payload.state === 'streaming') extendSuppress(8000);
   if (payload.state === 'idle' && autoOn) {
     setStatus('auto', autoIdleText());
     return;
@@ -894,6 +938,7 @@ window.ghost.on('question', (text) => {
 });
 
 window.ghost.on('answer-chunk', (delta) => {
+  if (autoOn) extendSuppress(4000);
   if (delta) appendAnswer(delta);
 });
 
