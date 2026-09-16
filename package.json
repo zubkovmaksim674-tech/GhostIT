@@ -1,7 +1,7 @@
 {
   "name": "ghostit",
   "productName": "GhostIT",
-  "version": "0.2.5.1",
+  "version": "0.2.5",
   "description": "GhostIT — IT-ассистент для собеседований: слушает вопросы (микрофон или звук звонка) и мгновенно выдаёт ответы ИИ в оверлее поверх всех окон",
   "main": "main.js",
   "scripts": {
