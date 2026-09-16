@@ -624,7 +624,7 @@ function historyFile() {
 
 function loadHistory() {
   try {
-    const raw = fs.readFileSync(historyFile(), 'utf8');
+    const raw = fs.readFileSync(historyFile(), 'utf8').replace(/^\uFEFF/, '');
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) return parsed.slice(-60);
   } catch {}
