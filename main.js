@@ -897,6 +897,17 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
   });
 }
 
+function cleanupStaleUpdateFiles() {
+  const candidates = ['GhostIT-new.exe', 'GhostIT-new.exe.part', 'ghostit-update-helper.js', 'ghostit-update.log'];
+  const cutoff = Date.now() - 5 * 60 * 1000;
+  for (const name of candidates) {
+    const p = path.join(app.getPath('temp'), name);
+    try {
+      if (fs.existsSync(p) && fs.statSync(p).mtimeMs < cutoff) fs.unlinkSync(p);
+    } catch {}
+  }
+}
+
 async function boot() {
   app.setAppUserModelId('GhostIT');
   const legacy = config.migrateLegacy();
@@ -913,6 +924,8 @@ async function boot() {
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     callback(permission === 'media' || permission === 'display-capture');
   });
+
+  cleanupStaleUpdateFiles();
 
   session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
     try {

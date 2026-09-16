@@ -665,10 +665,11 @@ async function refreshTgAccount() {
   const loginBtn = document.getElementById('btn-tg-auth');
   const unlinkBtn = document.getElementById('btn-tg-unlink');
   if (!el) return;
+  const hasKey = !!(config && config.api && config.api.apiKey);
+  if (loginBtn) loginBtn.classList.toggle('hidden', hasKey);
+  if (unlinkBtn) unlinkBtn.classList.toggle('hidden', !hasKey);
   const me = await window.ghost.tgAuthMe();
   const connected = !!(me && !me.error && me.username);
-  if (loginBtn) loginBtn.classList.toggle('hidden', connected);
-  if (unlinkBtn) unlinkBtn.classList.toggle('hidden', !connected);
   if (!connected) {
     el.classList.add('hidden');
     el.textContent = '';

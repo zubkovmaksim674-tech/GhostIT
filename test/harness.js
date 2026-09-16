@@ -180,6 +180,8 @@ function runDomTest({ win, updater, workerCall, config, log, exitApp }) {
           bodyHeight: document.body.clientHeight,
           modeBadge: document.getElementById('mode-badge').textContent,
           clickthroughHintHidden: document.getElementById('clickthrough-hint').classList.contains('hidden'),
+          loginBtnHidden: document.getElementById('btn-tg-auth').classList.contains('hidden'),
+          unlinkBtnHidden: document.getElementById('btn-tg-unlink').classList.contains('hidden'),
           headerWidth: (() => { const h = document.querySelector('.widget-header'); return h ? h.scrollWidth + '/' + h.clientWidth : 'n/a'; })()
         };
         document.getElementById('btn-settings').click();
