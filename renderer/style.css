@@ -683,7 +683,16 @@ input, select, textarea {
 input[type="text"], input[type="password"], select { height: 36px; }
 input:focus, select:focus, textarea:focus { border-color: var(--accent-primary); }
 input[type="checkbox"] { width: auto; height: auto; accent-color: var(--accent-primary); }
-input[type="range"] { padding: 0; accent-color: var(--accent-primary); border: none; background: transparent; }
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+  margin: 0;
+  height: 16px;
+  accent-color: var(--accent-primary);
+  border: none;
+  background: transparent;
+}
 textarea {
   resize: none;
   scrollbar-width: thin;
@@ -731,11 +740,14 @@ input[type="range"]::-webkit-slider-thumb {
   appearance: none;
   width: 16px;
   height: 16px;
+  margin-top: -6px;
   background: var(--accent-primary);
   border: 2px solid white;
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: background-color 0.15s ease;
 }
+input[type="range"]:hover::-webkit-slider-thumb { background: #C9CFF5; }
 input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
   background: rgba(255, 255, 255, 0.1);
