@@ -908,6 +908,36 @@ function cleanupStaleUpdateFiles() {
   }
 }
 
+function cleanupStaleAppCopies() {
+  const temp = app.getPath('temp');
+  const cutoff = Date.now() - 6 * 60 * 60 * 1000;
+  const selfDir = path.dirname(process.execPath);
+  let entries;
+  try {
+    entries = fs.readdirSync(temp, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const ent of entries) {
+    if (!ent.isDirectory()) continue;
+    if (!/^(ns[0-9A-Fa-f]{5}\.tmp|[0-9A-Za-z]{20,})$/.test(ent.name)) continue;
+    const dir = path.join(temp, ent.name);
+    if (dir === selfDir) continue;
+    let stat;
+    try { stat = fs.statSync(dir); } catch { continue; }
+    if (stat.mtimeMs > cutoff) continue;
+    let ours = false;
+    for (const exe of ['GhostIT.exe', 'GhostQA.exe']) {
+      if (fs.existsSync(path.join(dir, exe)) || fs.existsSync(path.join(dir, '7z-out', exe))) { ours = true; break; }
+    }
+    if (!ours) continue;
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+      log('CLEANUP removed stale app copy:', dir);
+    } catch {}
+  }
+}
+
 async function boot() {
   app.setAppUserModelId('GhostIT');
   const legacy = config.migrateLegacy();
@@ -926,6 +956,7 @@ async function boot() {
   });
 
   cleanupStaleUpdateFiles();
+  cleanupStaleAppCopies();
 
   session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
     try {

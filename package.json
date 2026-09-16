@@ -20,7 +20,7 @@
     "appId": "com.ghostit.app",
     "productName": "GhostIT",
     "extraMetadata": {
-      "version": "0.2.3.1"
+      "version": "0.2.3.2"
     },
     "files": [
       "main.js",
@@ -30,6 +30,7 @@
       "lib/**",
       "test/harness.js",
       "build/**",
+      "!build/installer.nsh",
       "package.json"
     ],
     "asar": true,
@@ -52,6 +53,7 @@
       "artifactName": "GhostIT.exe"
     },
     "nsis": {
+      "include": "build/installer.nsh",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
