@@ -483,8 +483,6 @@ function fillSettings() {
   document.getElementById('s-auto').checked = autoOn;
   document.getElementById('s-sens').value = (config.autoListen && config.autoListen.sensitivity) || 35;
   document.getElementById('s-opacity').value = Math.round((config.ui.opacity || 0.95) * 100);
-  const unlinkBtn = document.getElementById('btn-tg-unlink');
-  if (unlinkBtn) unlinkBtn.classList.toggle('hidden', !config.api.apiKey);
 }
 
 function openSettings() {
@@ -664,9 +662,14 @@ function formatExpiry(exp) {
 
 async function refreshTgAccount() {
   const el = document.getElementById('tg-account-info');
+  const loginBtn = document.getElementById('btn-tg-auth');
+  const unlinkBtn = document.getElementById('btn-tg-unlink');
   if (!el) return;
   const me = await window.ghost.tgAuthMe();
-  if (!me || me.error || !me.username) {
+  const connected = !!(me && !me.error && me.username);
+  if (loginBtn) loginBtn.classList.toggle('hidden', connected);
+  if (unlinkBtn) unlinkBtn.classList.toggle('hidden', !connected);
+  if (!connected) {
     el.classList.add('hidden');
     el.textContent = '';
     return;
@@ -698,7 +701,7 @@ async function startTgAuth() {
   box.classList.remove('hidden');
   qrEl.innerHTML = '';
   new QRCode(qrEl, { text: s.qr, width: 170, height: 170, correctLevel: QRCode.CorrectLevel.M });
-  document.getElementById('tg-auth-code').textContent = 'или нажми «🤝 Подключить GhostIT» в боте, код: ' + s.code;
+  document.getElementById('tg-auth-code').textContent = 'Код для бота @GhostIT_helper_bot: ' + s.code;
   state.textContent = 'ожидание Telegram…';
   const t0 = Date.now();
   tgAuth.timer = setInterval(async () => {
@@ -914,8 +917,7 @@ function applyClickThroughUi() {
 
 window.ghost.on('config-updated', (cfg) => {
   config = cfg;
-  const unlinkBtn = document.getElementById('btn-tg-unlink');
-  if (unlinkBtn) unlinkBtn.classList.toggle('hidden', !(cfg.api && cfg.api.apiKey));
+  refreshTgAccount();
   clickThrough = !!(cfg.ui && cfg.ui.clickThrough);
   applyClickThroughUi();
   if (vad.active || autoOn) {
