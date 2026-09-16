@@ -483,7 +483,20 @@ function fillSettings() {
   document.getElementById('s-auto').checked = autoOn;
   document.getElementById('s-sens').value = (config.autoListen && config.autoListen.sensitivity) || 35;
   document.getElementById('s-opacity').value = Math.round((config.ui.opacity || 0.95) * 100);
+  const sensVal = document.getElementById('s-sens-val');
+  if (sensVal) sensVal.textContent = document.getElementById('s-sens').value;
+  const opacityVal = document.getElementById('s-opacity-val');
+  if (opacityVal) opacityVal.textContent = document.getElementById('s-opacity').value + '%';
 }
+
+document.getElementById('s-sens').addEventListener('input', () => {
+  const out = document.getElementById('s-sens-val');
+  if (out) out.textContent = document.getElementById('s-sens').value;
+});
+document.getElementById('s-opacity').addEventListener('input', () => {
+  const out = document.getElementById('s-opacity-val');
+  if (out) out.textContent = document.getElementById('s-opacity').value + '%';
+});
 
 function openSettings() {
   fillSettings();
@@ -718,7 +731,7 @@ document.getElementById('btn-dl-model').addEventListener('click', async () => {
 const PROXY_BASE_URL = 'https://ghostqa-proxy.fog-map-concept.workers.dev/v1';
 const tgAuth = { timer: null };
 
-const PLAN_NAMES = { demo: '🆓 демо', day: '☀️ день', week: '📅 неделя', month: '🗓 месяц' };
+const PLAN_LABELS = { demo: 'демо', day: 'день', week: 'неделя', month: 'месяц', owner: 'безлимит' };
 
 function formatExpiry(exp) {
   const daysLeft = Math.ceil((exp - Date.now()) / 86400000);
@@ -733,22 +746,27 @@ async function refreshTgAccount() {
   const el = document.getElementById('tg-account-info');
   const loginBtn = document.getElementById('btn-tg-auth');
   const unlinkBtn = document.getElementById('btn-tg-unlink');
+  const offline = document.getElementById('acc-offline');
   if (!el) return;
   const hasKey = !!(config && config.api && config.api.apiKey);
   if (loginBtn) loginBtn.classList.toggle('hidden', hasKey);
   if (unlinkBtn) unlinkBtn.classList.toggle('hidden', !hasKey);
+  if (offline) offline.classList.add('hidden');
   const me = await window.ghost.tgAuthMe();
   const connected = !!(me && !me.error && me.username);
   if (!connected) {
     el.classList.add('hidden');
-    el.textContent = '';
+    if (hasKey && offline) offline.classList.remove('hidden');
     return;
   }
   const name = me.username ? '@' + me.username : (me.first_name || 'пользователь');
-  const plan = PLAN_NAMES[me.plan] || me.plan || '🆓 демо';
-  let text = '👤 ' + name + ' · тариф: ' + plan;
-  if (me.plan !== 'demo' && me.exp) text += ' · действует ' + formatExpiry(me.exp);
-  el.textContent = text;
+  const plan = PLAN_LABELS[me.plan] || me.plan || 'демо';
+  const status = document.getElementById('acc-status');
+  const planEl = document.getElementById('acc-plan');
+  const expEl = document.getElementById('acc-exp');
+  if (status) status.textContent = name;
+  if (planEl) planEl.textContent = plan;
+  if (expEl) expEl.textContent = (me.plan !== 'demo' && me.exp) ? formatExpiry(me.exp).replace(/^до /, '') : '—';
   el.classList.remove('hidden');
 }
 
@@ -771,7 +789,7 @@ async function startTgAuth() {
   box.classList.remove('hidden');
   qrEl.innerHTML = '';
   new QRCode(qrEl, { text: s.qr, width: 170, height: 170, correctLevel: QRCode.CorrectLevel.M });
-  document.getElementById('tg-auth-code').textContent = 'Код для бота @GhostIT_helper_bot: ' + s.code;
+  document.getElementById('tg-auth-code').textContent = s.code;
   state.textContent = 'ожидание Telegram…';
   const t0 = Date.now();
   tgAuth.timer = setInterval(async () => {
@@ -788,7 +806,7 @@ async function startTgAuth() {
         api: { baseUrl: PROXY_BASE_URL, apiKey: p.token, model: 'groq' }
       });
       fillSettings();
-      state.textContent = '✅ подключено, тариф: ' + (p.plan || 'demo');
+      state.textContent = '✅ подключено';
       box.classList.add('hidden');
       setStatus('ok', 'Telegram-аккаунт привязан');
       refreshTgAccount();
@@ -1021,6 +1039,8 @@ async function init() {
   answerFontSize = (config.ui && config.ui.fontSize) || 13;
   applyAnswerFontSize();
   updateSessionStats();
+  const versionEl = document.getElementById('update-version');
+  if (versionEl && config.appVersion) versionEl.textContent = 'Версия приложения: v' + config.appVersion;
   setStatus('idle', autoOn ? autoIdleText() : 'Готов');
 }
 

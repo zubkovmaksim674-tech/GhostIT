@@ -250,7 +250,7 @@ function runUiTest({ win, sendToRenderer, log, exitApp }) {
     await new Promise((resolve) => setTimeout(resolve, 600));
     const shot2 = await win.webContents.capturePage();
     saveArtifact('ghostit-ui-settings.png', shot2.toPNG());
-    await win.webContents.executeJavaScript(`document.getElementById('btn-tg-auth').scrollIntoView({ block: 'center' })`);
+    await win.webContents.executeJavaScript(`(document.querySelector('#btn-tg-unlink:not(.hidden)') || document.getElementById('btn-tg-auth')).scrollIntoView({ block: 'center' })`);
     await new Promise((resolve) => setTimeout(resolve, 300));
     const shot3 = await win.webContents.capturePage();
     saveArtifact('ghostit-ui-account.png', shot3.toPNG());

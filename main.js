@@ -656,7 +656,7 @@ function saveHistory() {
 }
 
 function registerIpc() {
-  ipcMain.handle('get-config', () => config.load());
+  ipcMain.handle('get-config', () => Object.assign({}, config.load(), { appVersion: app.getVersion() }));
 
   ipcMain.handle('tg-auth-start', async () => {
     try {

@@ -91,17 +91,22 @@
 
     <div class="section-label">Аккаунт</div>
     <div class="settings-card">
+      <div id="tg-account-info" class="account-info hidden">
+        <div class="account-row"><span class="account-label">Подключено</span><span class="account-value ok" id="acc-status"></span></div>
+        <div class="account-row"><span class="account-label">Тариф</span><span class="account-value" id="acc-plan"></span></div>
+        <div class="account-row"><span class="account-label">Действует</span><span class="account-value" id="acc-exp"></span></div>
+      </div>
+      <div id="acc-offline" class="muted small hidden">Ключ сохранён, но бот недоступен — тариф подтянется позже</div>
       <div class="settings-actions">
-        <button id="btn-tg-auth" class="suggestion-action primary"><span class="ico">🔑</span> Телеграм</button>
+        <button id="btn-tg-auth" class="suggestion-action primary"><span class="ico">🔑</span> Войти через Telegram</button>
         <button id="btn-tg-unlink" class="suggestion-action hidden"><span class="ico">🔓</span> Отвязать Telegram</button>
         <span class="muted small" id="tg-auth-state"></span>
       </div>
       <div id="tg-auth-box" class="hidden">
         <div id="tg-qr" class="tg-qr"></div>
-        <div class="muted small" id="tg-auth-code"></div>
+        <div class="auth-code-row"><span id="tg-auth-code" class="auth-code"></span></div>
         <div class="muted small" id="tg-auth-hint">Отсканируй QR камерой Telegram или отправь этот код боту @GhostIT_helper_bot (кнопка «🔗 Подключить из приложения»)</div>
       </div>
-      <div id="tg-account-info" class="account-info hidden"></div>
     </div>
 
     <div class="section-label">Активация</div>
@@ -142,8 +147,14 @@
       <label class="row"><input id="s-tts" type="checkbox"> Озвучивать ответ голосом</label>
       <label class="row"><input id="s-protect" type="checkbox"> Скрывать от записи экрана</label>
       <label class="row"><input id="s-auto" type="checkbox"> Автослушание включено</label>
-      <label class="row">Чувствительность автослушания<input id="s-sens" type="range" min="5" max="90" value="35"></label>
-      <label class="row">Прозрачность<input id="s-opacity" type="range" min="50" max="100" value="95"></label>
+      <div class="range-block">
+        <div class="range-head"><span>Чувствительность автослушания</span><output id="s-sens-val">35</output></div>
+        <input id="s-sens" type="range" min="5" max="90" value="35">
+      </div>
+      <div class="range-block">
+        <div class="range-head"><span>Прозрачность</span><output id="s-opacity-val">95%</output></div>
+        <input id="s-opacity" type="range" min="50" max="100" value="95">
+      </div>
     </div>
 
     <div class="section-label">Обновления</div>
