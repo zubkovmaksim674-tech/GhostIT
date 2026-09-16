@@ -883,6 +883,13 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
   ipcMain.handle('update-check', async () => {
     try {
       const info = await updater.checkLatest(app.getVersion());
+      const isPortable = !!process.env.PORTABLE_EXECUTABLE_FILE;
+      if (!isPortable && info.setupUrl) {
+        return {
+          ok: true, current: app.getVersion(), ...info,
+          url: info.setupUrl, name: info.setupName, size: info.setupSize, digest: info.setupDigest
+        };
+      }
       return { ok: true, current: app.getVersion(), ...info };
     } catch (error) {
       return { ok: false, error: error.message };
@@ -890,7 +897,8 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
   });
 
   ipcMain.handle('update-download', async (event, url, digest) => {
-    const dest = path.join(app.getPath('temp'), 'GhostIT-new.exe');
+    const isSetup = /setup/i.test(String(url || ''));
+    const dest = path.join(app.getPath('temp'), isSetup ? 'GhostIT-Setup-new.exe' : 'GhostIT-new.exe');
     try {
       const parsed = new URL(String(url || ''));
       const host = parsed.hostname.toLowerCase();
@@ -910,16 +918,29 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
   });
 
   ipcMain.handle('update-install', () => {
-    const dest = path.join(app.getPath('temp'), 'GhostIT-new.exe');
-    if (!fs.existsSync(dest)) return { ok: false, error: 'Скачанный файл не найден' };
-    if (!process.env.PORTABLE_EXECUTABLE_FILE) {
-      shell.openExternal(updater.RELEASES_PAGE);
-      return { ok: false, fallback: 'open-page', error: 'Открыта страница релизов — скачайте установщик' };
+    const portableFile = path.join(app.getPath('temp'), 'GhostIT-new.exe');
+    const setupFile = path.join(app.getPath('temp'), 'GhostIT-Setup-new.exe');
+    if (process.env.PORTABLE_EXECUTABLE_FILE) {
+      if (!fs.existsSync(portableFile)) return { ok: false, error: 'Скачанный файл не найден' };
+      updater.installUpdate(portableFile);
+      quitting = true;
+      setTimeout(() => app.exit(0), 500);
+      return { ok: true };
     }
-    updater.installUpdate(dest);
-    quitting = true;
-    setTimeout(() => app.exit(0), 500);
-    return { ok: true };
+    if (fs.existsSync(setupFile)) {
+      if (updater.installSetupLocal(setupFile, process.execPath, app.getPath('temp'))) {
+        quitting = true;
+        setTimeout(() => app.exit(0), 500);
+        return { ok: true };
+      }
+      return { ok: false, error: 'Не удалось запустить установщик' };
+    }
+    if (fs.existsSync(portableFile)) {
+      // portable exe скачан в NSIS-установку: заменить только exe нельзя (app.asar отдельно)
+      fs.unlinkSync(portableFile);
+    }
+    shell.openExternal(updater.RELEASES_PAGE);
+    return { ok: false, fallback: 'open-page', error: 'Открыта страница релизов — скачайте установщик' };
   });
 
   ipcMain.handle('open-external', (event, url) => {
