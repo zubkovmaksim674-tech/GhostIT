@@ -48,6 +48,23 @@ test('isQuestion: неопределённые местоимения не сч�
   assert.equal(isQuestion('как-нибудь потом'), false);
 });
 
+test('isQuestion: вежливые формы «вы» (вопросы интервьюера)', () => {
+  assert.equal(isQuestion('Расскажите о себе'), true);
+  assert.equal(isQuestion('Опишите ваш опыт с Docker'), true);
+  assert.equal(isQuestion('Можете рассказать про индексы в базе'), true);
+  assert.equal(isQuestion('Приведите пример архитектуры'), true);
+  assert.equal(isQuestion('Назовите три способа оптимизации запросов'), true);
+  assert.equal(isQuestion('Объясните разницу между процессами и потоками'), true);
+  assert.equal(isQuestion('Расскажете про свой последний проект'), true);
+});
+
+test('isQuestion: вежливые формы не ломают не-вопросы', () => {
+  assert.equal(isQuestion('Здравствуйте'), false);
+  assert.equal(isQuestion('Я работаю в компании три года'), false);
+  assert.equal(isQuestion('Мы сделали релиз вчера вечером'), false);
+  assert.equal(isQuestion('Сегодня хорошая погода'), false);
+});
+
 test('createFragmentMerger: склейка разрезанного паузой вопроса', () => {
   const m = createFragmentMerger({ windowMs: 5000 });
   assert.equal(m.combine('не работает'), null);
