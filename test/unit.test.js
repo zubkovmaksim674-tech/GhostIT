@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { isQuestion } = require('../lib/question');
+const { isQuestion, createFragmentMerger } = require('../lib/question');
 const { parseVersion, isNewer } = require('../lib/updater');
 const { buildMessages, normalizeBaseUrl } = require('../lib/llm');
 
@@ -28,6 +28,43 @@ test('isQuestion: не-вопросы отбрасываются', () => {
   assert.equal(isQuestion('Здравствуйте'), false);
   assert.equal(isQuestion('Меня зовут Максим'), false);
   assert.equal(isQuestion('Сегодня хорошая погода'), false);
+});
+
+test('isQuestion: свободный порядок слов', () => {
+  assert.equal(isQuestion('прод лёг и никто не знает почему'), true);
+  assert.equal(isQuestion('балансировщик настраивается как'), true);
+  assert.equal(isQuestion('это кэшируется вообще-то или нет'), true);
+});
+
+test('isQuestion: частицы и глаголы-просьбы', () => {
+  assert.equal(isQuestion('работает ли этот прокси'), true);
+  assert.equal(isQuestion('сравни http и https'), true);
+  assert.equal(isQuestion('объясни простыми словами'), true);
+});
+
+test('isQuestion: неопределённые местоимения не считаются вопросом', () => {
+  assert.equal(isQuestion('что-то упало в логах'), false);
+  assert.equal(isQuestion('кто-то трогал конфиг'), false);
+  assert.equal(isQuestion('как-нибудь потом'), false);
+});
+
+test('createFragmentMerger: склейка разрезанного паузой вопроса', () => {
+  const m = createFragmentMerger({ windowMs: 5000 });
+  assert.equal(m.combine('не работает'), null);
+  m.remember('поднял сервис');
+  assert.equal(m.combine('почему'), 'поднял сервис почему');
+  assert.equal(m.combine('почему'), null);
+});
+
+test('createFragmentMerger: окно и слишком длинные фразы', async () => {
+  const m = createFragmentMerger({ windowMs: 20, maxWords: 4 });
+  m.remember('старый фрагмент');
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  assert.equal(m.combine('слова'), null);
+
+  const long = createFragmentMerger({ windowMs: 5000, maxWords: 3 });
+  long.remember('раз два три четыре');
+  assert.equal(long.combine('короткий'), null);
 });
 
 test('updater.parseVersion', () => {

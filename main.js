@@ -4,7 +4,7 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const config = require('./lib/config');
 const { streamAnswer } = require('./lib/llm');
-const { isQuestion } = require('./lib/question');
+const { isQuestion, createFragmentMerger } = require('./lib/question');
 const updater = require('./lib/updater');
 const harness = require('./test/harness');
 
@@ -38,6 +38,7 @@ let history = [];
 let currentAbort = null;
 let mockPrompt = null;
 let mockPrevHistory = null;
+const autoFragments = createFragmentMerger();
 
 function buildMockPrompt(topic) {
   const role = topic || 'Middle QA Engineer';
@@ -739,10 +740,18 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
         return { text: '', asked: false };
       }
       const isAuto = !!(options && options.auto);
-      if (isAuto && !isQuestion(text)) {
-        sendToRenderer('auto-skipped', text);
-        sendStatus('idle', idleText());
-        return { text, asked: false };
+      if (isAuto) {
+        const combined = autoFragments.combine(text);
+        const candidate = combined || text;
+        if (!isQuestion(candidate)) {
+          autoFragments.remember(candidate);
+          sendToRenderer('auto-skipped', text);
+          sendStatus('idle', idleText());
+          return { text, asked: false };
+        }
+        sendToRenderer('question', candidate);
+        ask(candidate);
+        return { text: candidate, asked: true };
       }
       sendToRenderer('question', text);
       ask(text);
@@ -762,6 +771,7 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
       return { active: false };
     }
     const cleanTopic = String(topic || '').trim().slice(0, 120);
+    autoFragments.reset();
     mockPrevHistory = history;
     history = [];
     mockPrompt = buildMockPrompt(cleanTopic);
@@ -774,6 +784,7 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
   ipcMain.handle('ask-text', (event, text) => {
     const question = String(text || '').trim();
     if (!question) return null;
+    autoFragments.reset();
     sendToRenderer('question', question);
     ask(question);
     return question;
