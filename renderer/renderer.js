@@ -468,6 +468,14 @@ function speak(text) {
   } catch {}
 }
 
+const THEMES = ['violet', 'graphite', 'neon', 'amber'];
+
+function applyTheme(theme) {
+  const el = document.getElementById('app');
+  const t = THEMES.includes(theme) ? theme : 'violet';
+  if (el) el.setAttribute('data-theme', t);
+}
+
 function fillSettings() {
   if (!config) return;
   document.getElementById('s-baseurl').value = config.api.baseUrl || '';
@@ -479,6 +487,7 @@ function fillSettings() {
   document.getElementById('s-lang').value = config.whisper.language || 'ru';
   document.getElementById('s-listen').value = (config.audio && config.audio.listenSource) || 'system';
   document.getElementById('s-tts').checked = !!(config.ui && config.ui.tts);
+  document.getElementById('s-theme').value = (config.ui && config.ui.theme) || 'violet';
   document.getElementById('s-protect').checked = config.ui.protectCapture === true;
   document.getElementById('s-auto').checked = autoOn;
   document.getElementById('s-sens').value = (config.autoListen && config.autoListen.sensitivity) || 35;
@@ -537,7 +546,8 @@ async function saveSettings() {
     ui: {
       tts: document.getElementById('s-tts').checked,
       protectCapture: document.getElementById('s-protect').checked,
-      opacity
+      opacity,
+      theme: document.getElementById('s-theme').value
     }
   };
   config = await window.ghost.saveConfig(patch);
@@ -1010,6 +1020,7 @@ function applyClickThroughUi() {
 
 window.ghost.on('config-updated', (cfg) => {
   config = cfg;
+  applyTheme(cfg.ui && cfg.ui.theme);
   if (cfg.ui && cfg.ui.fontSize) {
     answerFontSize = cfg.ui.fontSize;
     applyAnswerFontSize();
@@ -1027,6 +1038,7 @@ window.ghost.on('config-updated', (cfg) => {
 
 async function init() {
   config = await window.ghost.getConfig();
+  applyTheme(config.ui && config.ui.theme);
   refreshUsage();
   autoOn = !!(config.autoListen && config.autoListen.enabled);
   vad.threshold = thresholdFromConfig();
