@@ -641,6 +641,14 @@ html, body {
   gap: 10px;
 }
 
+.account-info {
+  font-size: 12px;
+  color: var(--text-primary);
+  background-color: var(--card-dark);
+  border-radius: var(--border-radius-sm);
+  padding: 8px 12px;
+}
+
 label {
   display: flex;
   flex-direction: column;

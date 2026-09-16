@@ -491,6 +491,7 @@ function openSettings() {
   fillSettings();
   settingsEl.classList.remove('hidden');
   historyEl.classList.add('hidden');
+  refreshTgAccount();
 }
 
 function closeSettings() {
@@ -650,6 +651,34 @@ document.getElementById('btn-dl-model').addEventListener('click', async () => {
 const PROXY_BASE_URL = 'https://ghostqa-proxy.fog-map-concept.workers.dev/v1';
 const tgAuth = { timer: null };
 
+const PLAN_NAMES = { demo: '🆓 демо', day: '☀️ день', week: '📅 неделя', month: '🗓 месяц' };
+
+function formatExpiry(exp) {
+  const daysLeft = Math.ceil((exp - Date.now()) / 86400000);
+  const date = new Date(exp).toLocaleDateString('ru-RU');
+  if (daysLeft <= 0) return 'до ' + date;
+  if (daysLeft === 1) return 'до ' + date + ' (1 день)';
+  if (daysLeft < 5) return 'до ' + date + ' (' + daysLeft + ' дня)';
+  return 'до ' + date + ' (' + daysLeft + ' дн.)';
+}
+
+async function refreshTgAccount() {
+  const el = document.getElementById('tg-account-info');
+  if (!el) return;
+  const me = await window.ghost.tgAuthMe();
+  if (!me || me.error || !me.username) {
+    el.classList.add('hidden');
+    el.textContent = '';
+    return;
+  }
+  const name = me.username ? '@' + me.username : (me.first_name || 'пользователь');
+  const plan = PLAN_NAMES[me.plan] || me.plan || '🆓 демо';
+  let text = '👤 ' + name + ' · тариф: ' + plan;
+  if (me.plan !== 'demo' && me.exp) text += ' · действует ' + formatExpiry(me.exp);
+  el.textContent = text;
+  el.classList.remove('hidden');
+}
+
 function stopTgAuthPoll() {
   if (tgAuth.timer) clearInterval(tgAuth.timer);
   tgAuth.timer = null;
@@ -689,6 +718,7 @@ async function startTgAuth() {
       state.textContent = '✅ подключено, тариф: ' + (p.plan || 'demo');
       box.classList.add('hidden');
       setStatus('ok', 'Telegram-аккаунт привязан');
+      refreshTgAccount();
       setTimeout(() => setStatus('idle', autoOn ? autoIdleText() : 'Готов'), 2000);
     }
   }, 2500);

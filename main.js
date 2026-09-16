@@ -665,6 +665,20 @@ function registerIpc() {
     }
   });
 
+  ipcMain.handle('tg-auth-me', async () => {
+    try {
+      const cfg = config.load();
+      if (!cfg.api.apiKey) return { error: 'no key' };
+      const res = await fetch(AUTH_URL + '/v1/me', {
+        headers: { Authorization: 'Bearer ' + cfg.api.apiKey }
+      });
+      if (!res.ok) throw new Error('me http ' + res.status);
+      return await res.json();
+    } catch (error) {
+      return { error: error.message };
+    }
+  });
+
   ipcMain.handle('tg-unlink', async () => {
     const cfg = config.load();
     const key = cfg.api.apiKey || '';
