@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain, globalShortcut, clipboard, session, shell, desktopCapturer, protocol, dialog } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain, globalShortcut, clipboard, session, shell, desktopCapturer, protocol, dialog, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -172,6 +172,11 @@ function createWindow() {
   win.setOpacity(cfg.ui.opacity);
   win.setContentProtection(cfg.ui.protectCapture === true);
   if (cfg.ui.clickThrough) win.setIgnoreMouseEvents(true, { forward: true });
+
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.webContents.on('will-navigate', (event, url) => {
+    if (!String(url).startsWith('ghostit://')) event.preventDefault();
+  });
 
   win.loadURL('ghostit://app/index.html');
 
@@ -625,7 +630,16 @@ function historyFile() {
 function loadHistory() {
   try {
     const raw = fs.readFileSync(historyFile(), 'utf8').replace(/^\uFEFF/, '');
-    const parsed = JSON.parse(raw);
+    let parsed;
+    if (raw.startsWith('enc:')) {
+      const json = safeStorage.isEncryptionAvailable()
+        ? safeStorage.decryptString(Buffer.from(raw.slice(4), 'base64'))
+        : null;
+      if (!json) return [];
+      parsed = JSON.parse(json);
+    } else {
+      parsed = JSON.parse(raw);
+    }
     if (Array.isArray(parsed)) return parsed.slice(-60);
   } catch {}
   return [];
@@ -633,7 +647,11 @@ function loadHistory() {
 
 function saveHistory() {
   try {
-    fs.writeFileSync(historyFile(), JSON.stringify(history.slice(-60)), 'utf8');
+    const json = JSON.stringify(history.slice(-60));
+    const out = safeStorage.isEncryptionAvailable()
+      ? 'enc:' + safeStorage.encryptString(json).toString('base64')
+      : json;
+    fs.writeFileSync(historyFile(), out, 'utf8');
   } catch {}
 }
 
@@ -804,6 +822,13 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
   ipcMain.handle('update-download', async (event, url, digest) => {
     const dest = path.join(app.getPath('temp'), 'GhostIT-new.exe');
     try {
+      const parsed = new URL(String(url || ''));
+      const host = parsed.hostname.toLowerCase();
+      const hostOk = host === 'github.com' || host.endsWith('.github.com') ||
+        host === 'objects.githubusercontent.com' || host === 'release-assets.githubusercontent.com';
+      if (parsed.protocol !== 'https:' || !hostOk) {
+        return { ok: false, error: 'Недопустимый адрес обновления' };
+      }
       await updater.downloadUpdate(url, dest, (percent) => {
         sendToRenderer('update-progress', { phase: 'download', percent });
       }, digest);
