@@ -20,7 +20,7 @@
     "appId": "com.ghostit.app",
     "productName": "GhostIT",
     "extraMetadata": {
-      "version": "0.2.3.6"
+      "version": "0.2.3.7"
     },
     "files": [
       "main.js",
