@@ -762,7 +762,6 @@ html, body {
 .account-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 12px; }
 .account-label { color: var(--text-secondary); }
 .account-value { color: var(--text-primary); font-weight: 500; text-align: right; }
-.account-value.ok::before { content: 'РІвЂ”РЏ '; color: var(--status-session); font-size: 10px; }
 
 label {
   display: flex;
