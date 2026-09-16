@@ -472,7 +472,6 @@ function fillSettings() {
   document.getElementById('s-baseurl').value = config.api.baseUrl || '';
   document.getElementById('s-apikey').value = config.api.apiKey || '';
   document.getElementById('s-model').value = config.api.model || '';
-  document.getElementById('s-prompt').value = config.prompt || '';
   document.getElementById('s-mode').value = config.hotkey.mode || 'hold';
   document.getElementById('s-combo').value = config.hotkey.combo || 'ctrl+shift+space';
   document.getElementById('s-whisper').value = config.whisper.model || 'Xenova/whisper-small';
@@ -525,8 +524,7 @@ async function saveSettings() {
       tts: document.getElementById('s-tts').checked,
       protectCapture: document.getElementById('s-protect').checked,
       opacity
-    },
-    prompt: document.getElementById('s-prompt').value.trim()
+    }
   };
   config = await window.ghost.saveConfig(patch);
   updateModeBadge();
