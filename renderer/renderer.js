@@ -741,7 +741,7 @@ document.getElementById('btn-dl-model').addEventListener('click', async () => {
 const PROXY_BASE_URL = 'https://ghostqa-proxy.fog-map-concept.workers.dev/v1';
 const tgAuth = { timer: null };
 
-const PLAN_LABELS = { demo: 'демо', day: 'день', week: 'неделя', month: 'месяц', owner: 'безлимит' };
+const PLAN_LABELS = { demo: 'демо', day: 'Суточный Оффер', week: 'Недельный Оффер', month: 'Месячный Оффер', owner: 'безлимит' };
 
 function formatExpiry(exp) {
   const daysLeft = Math.ceil((exp - Date.now()) / 86400000);
