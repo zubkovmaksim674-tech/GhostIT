@@ -254,7 +254,11 @@ function runUiTest({ win, sendToRenderer, log, exitApp }) {
     await new Promise((resolve) => setTimeout(resolve, 300));
     const shot3 = await win.webContents.capturePage();
     saveArtifact('ghostit-ui-account.png', shot3.toPNG());
-    log('UITEST_SAVED ' + pathJoin('ghostit-ui-settings.png') + ' + account');
+    await win.webContents.executeJavaScript(`document.getElementById('btn-save').scrollIntoView({ block: 'center' })`);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const shot4 = await win.webContents.capturePage();
+    saveArtifact('ghostit-ui-save.png', shot4.toPNG());
+    log('UITEST_SAVED ' + pathJoin('ghostit-ui-settings.png') + ' + account + save');
     exitApp();
   });
 }

@@ -779,6 +779,64 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
     return question;
   });
 
+  ipcMain.handle('refine-answer', async (event, mode) => {
+    const cfg = config.load();
+    if (!cfg.api.apiKey) {
+      sendStatus('error', 'Нет API-ключа — войди через Telegram или вставь свой ключ');
+      return null;
+    }
+    const lastUser = [...history].reverse().find((m) => m.role === 'user');
+    const lastAssistant = [...history].reverse().find((m) => m.role === 'assistant');
+    if (!lastUser || !lastAssistant) return null;
+    if (currentAbort) currentAbort.abort();
+    const abort = new AbortController();
+    currentAbort = abort;
+    const instruction = mode === 'shorter'
+      ? 'Перепиши свой последний ответ короче: максимум 1–2 предложения, только суть, без вступлений.'
+      : 'Раскрой свой последний ответ подробнее: ключевые детали и короткий пример, списком до 6 пунктов.';
+    const prompt = 'Вопрос: ' + lastUser.content + '\n\nТвой предыдущий ответ: ' + lastAssistant.content + '\n\nЗадача: ' + instruction;
+    const contextBefore = history.slice(0, -1);
+    sendStatus('thinking', '⏳ Дорабатываю…');
+    let firstChunk = true;
+    try {
+      const answer = await streamAnswer({
+        baseUrl: cfg.api.baseUrl,
+        apiKey: cfg.api.apiKey,
+        model: cfg.api.model,
+        temperature: cfg.api.temperature,
+        maxTokens: cfg.api.maxTokens,
+        systemPrompt: mockPrompt || cfg.prompt,
+        history: contextBefore,
+        question: prompt,
+        signal: abort.signal
+      }, {
+        onDelta: (delta) => {
+          if (firstChunk) {
+            firstChunk = false;
+            sendStatus('streaming', '✍️ Отвечаю');
+          }
+          sendToRenderer('answer-chunk', delta);
+        },
+        onDone: () => {}
+      });
+      if (history.length && history[history.length - 1].role === 'assistant') {
+        history[history.length - 1] = { role: 'assistant', content: answer };
+      }
+      saveHistory();
+      sendToRenderer('answer-done', answer);
+      sendStatus('idle', idleText());
+      return answer;
+    } catch (error) {
+      sendToRenderer('answer-done', null);
+      if (error.name === 'AbortError') {
+        sendStatus('idle', 'Остановлено');
+        return null;
+      }
+      sendStatus('error', 'Ошибка: ' + error.message);
+      return null;
+    }
+  });
+
   ipcMain.handle('stop-answer', () => {
     if (currentAbort) currentAbort.abort();
     return true;
