@@ -25,6 +25,7 @@
       "renderer/**",
       "worker/**",
       "lib/**",
+      "test/harness.js",
       "build/**",
       "package.json"
     ],
