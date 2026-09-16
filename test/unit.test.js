@@ -43,6 +43,10 @@ test('updater.isNewer', () => {
   assert.equal(isNewer('1.3.0', '1.2.9'), true);
   assert.equal(isNewer('2.0.0', '1.9.9'), true);
   assert.equal(isNewer('0.1.0', '0.0.9'), true);
+  assert.equal(isNewer('0.2.3.1', '0.2.3'), true);
+  assert.equal(isNewer('0.2.3', '0.2.3.1'), false);
+  assert.equal(isNewer('0.2.3.1', '0.2.3.1'), false);
+  assert.equal(isNewer('0.2.4', '0.2.3.9'), true);
 });
 
 test('llm.normalizeBaseUrl', () => {
