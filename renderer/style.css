@@ -147,8 +147,8 @@ html, body {
   position: relative;
   display: flex;
   align-items: center;
-  padding: 8px 16px;
-  gap: 12px;
+  padding: 8px 12px;
+  gap: 8px;
   width: 100%;
   flex-shrink: 0;
   -webkit-app-region: drag;
@@ -164,7 +164,7 @@ html, body {
 .widget-primary-controls {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .session-status-indicator {
@@ -242,9 +242,9 @@ html, body {
   padding: 8px 16px;
   background: transparent;
   border: 2px solid transparent;
-  width: 80px;
+  width: 60px;
   height: 40px;
-  min-width: 80px;
+  min-width: 60px;
   min-height: 40px;
   font-weight: normal;
   flex-shrink: 0;
@@ -294,9 +294,9 @@ html, body {
   background: transparent;
   border: 2px solid transparent;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: normal;
-  padding: 8px 12px;
+  padding: 6px 10px;
   transition: background-color 0.2s ease, border-color 0.2s ease;
   display: flex;
   align-items: center;
@@ -343,16 +343,16 @@ html, body {
   background: transparent;
   border: none;
   padding: 6px;
-  border-radius: 16px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background-color 0.2s ease;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1;
 }
 .titlebar-button:hover { background-color: rgba(255, 255, 255, 0.1); }
@@ -363,15 +363,16 @@ html, body {
 .settings-button {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  margin-left: 2px;
   background: rgba(185, 191, 229, 0.08);
   border: 1px solid var(--divider);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 5px 12px;
-  border-radius: 16px;
-  height: 32px;
+  padding: 4px 8px;
+  border-radius: 15px;
+  height: 30px;
   flex-shrink: 0;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -592,7 +593,7 @@ html, body {
   transition: color 0.2s ease;
   white-space: nowrap;
   height: 32px;
-  min-width: 60px;
+  min-width: 84px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -702,6 +703,7 @@ select {
 select:hover { border-color: rgba(185, 191, 229, 0.35); }
 
 .settings-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.save-row { justify-content: flex-end; }
 .muted { color: var(--text-secondary); }
 .small { font-size: 11.5px; line-height: 1.45; }
 
@@ -767,7 +769,14 @@ input[type="range"]::-webkit-slider-runnable-track {
 .help-list { display: flex; flex-direction: column; gap: 10px; }
 .help-list > div { display: flex; gap: 10px; align-items: baseline; font-size: 12.5px; color: var(--text-primary); }
 .help-list b { color: var(--accent-primary); font-family: Consolas, monospace; font-size: 12px; min-width: 150px; font-weight: 600; }
-.help-list span { color: var(--text-secondary); }button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+.help-list span { color: var(--text-secondary); }
+
+/* Узкое окно: прячем подпись у «Настройки» и ужимаем волну */
+@media (max-width: 486px) {
+  .settings-label { display: none; }
+  .settings-button { padding: 4px 8px; }
+  .transcription-wave-button { width: 56px; min-width: 56px; }
+}button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 2px solid var(--accent-primary);
   outline-offset: 1px;
 }
