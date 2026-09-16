@@ -1001,6 +1001,11 @@ window.ghost.on('update-progress', (payload) => {
   if (!payload) return;
   if (payload.phase === 'download') {
     updateText.textContent = 'Скачиваю обновление… ' + payload.percent + '%';
+  } else if (payload.phase === 'error') {
+    updatePhase = 'idle';
+    updateText.textContent = 'Ошибка обновления: ' + (payload.error || 'неизвестно');
+    btnUpdate.textContent = 'Обновить';
+    btnUpdate.disabled = false;
   } else if (payload.phase === 'done') {
     updatePhase = 'ready';
     updateText.textContent = 'Обновление v' + updateInfoData.version + ' скачано — приложение перезапустится';
@@ -1013,14 +1018,14 @@ btnUpdate.addEventListener('click', async () => {
   if (updatePhase === 'idle') {
     startUpdateDownload();
   } else if (updatePhase === 'ready') {
+    btnUpdate.disabled = true;
     const res = await window.ghost.installUpdate();
     if (res && !res.ok) {
+      updatePhase = 'ready';
+      btnUpdate.disabled = false;
+      btnUpdate.textContent = 'Повторить';
       updateText.textContent = res.error || 'Не удалось установить обновление';
-      btnUpdate.textContent = res.fallback === 'open-page' ? 'На странице релизов' : 'Показать файл';
-      updatePhase = 'show';
     }
-  } else if (updatePhase === 'show') {
-    window.ghost.installUpdate();
   }
 });
 

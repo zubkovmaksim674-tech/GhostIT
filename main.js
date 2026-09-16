@@ -656,6 +656,29 @@ function saveHistory() {
   } catch {}
 }
 
+// Скачивание обновления с проверкой digest. Разрешены только github-хосты.
+// Файл кэшируется: повторный вызов при уже скачанном файле не качает заново.
+async function downloadUpdateFile(url, digest) {
+  const isSetup = /setup/i.test(String(url || ''));
+  const dest = path.join(app.getPath('temp'), isSetup ? 'GhostIT-Setup-new.exe' : 'GhostIT-new.exe');
+  const parsed = new URL(String(url || ''));
+  const host = parsed.hostname.toLowerCase();
+  const hostOk = host === 'github.com' || host.endsWith('.github.com') ||
+    host === 'objects.githubusercontent.com' || host === 'release-assets.githubusercontent.com';
+  if (parsed.protocol !== 'https:' || !hostOk) {
+    return { ok: false, error: 'Недопустимый адрес обновления' };
+  }
+  if (fs.existsSync(dest)) {
+    sendToRenderer('update-progress', { phase: 'done' });
+    return { ok: true, file: dest, cached: true };
+  }
+  await updater.downloadUpdate(url, dest, (percent) => {
+    sendToRenderer('update-progress', { phase: 'download', percent });
+  }, digest);
+  sendToRenderer('update-progress', { phase: 'done' });
+  return { ok: true, file: dest };
+}
+
 function registerIpc() {
   ipcMain.handle('get-config', () => Object.assign({}, config.load(), { appVersion: app.getVersion() }));
 
@@ -897,21 +920,8 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
   });
 
   ipcMain.handle('update-download', async (event, url, digest) => {
-    const isSetup = /setup/i.test(String(url || ''));
-    const dest = path.join(app.getPath('temp'), isSetup ? 'GhostIT-Setup-new.exe' : 'GhostIT-new.exe');
     try {
-      const parsed = new URL(String(url || ''));
-      const host = parsed.hostname.toLowerCase();
-      const hostOk = host === 'github.com' || host.endsWith('.github.com') ||
-        host === 'objects.githubusercontent.com' || host === 'release-assets.githubusercontent.com';
-      if (parsed.protocol !== 'https:' || !hostOk) {
-        return { ok: false, error: 'Недопустимый адрес обновления' };
-      }
-      await updater.downloadUpdate(url, dest, (percent) => {
-        sendToRenderer('update-progress', { phase: 'download', percent });
-      }, digest);
-      sendToRenderer('update-progress', { phase: 'done' });
-      return { ok: true, file: dest };
+      return await downloadUpdateFile(url, digest);
     } catch (error) {
       return { ok: false, error: error.message };
     }
@@ -939,8 +949,7 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
       // portable exe скачан в NSIS-установку: заменить только exe нельзя (app.asar отдельно)
       fs.unlinkSync(portableFile);
     }
-    shell.openExternal(updater.RELEASES_PAGE);
-    return { ok: false, fallback: 'open-page', error: 'Открыта страница релизов — скачайте установщик' };
+    return { ok: false, error: 'Файл установщика не найден — повторите обновление' };
   });
 
   ipcMain.handle('open-external', (event, url) => {
@@ -1090,14 +1099,29 @@ async function boot() {
     }
   }, { useSystemPicker: false });
 
-  setTimeout(async () => {
+  let updateState = 'idle'; // idle | downloading | ready
+  async function autoUpdateCheck() {
+    if (updateState !== 'idle') return;
+    let info;
+    try { info = await updater.checkLatest(app.getVersion()); } catch { return; }
+    if (!info.hasUpdate) return;
+    updateState = 'downloading';
+    const isPortable = !!process.env.PORTABLE_EXECUTABLE_FILE;
+    const pick = (!isPortable && info.setupUrl)
+      ? { url: info.setupUrl, digest: info.setupDigest, size: info.setupSize, name: info.setupName }
+      : { url: info.url, digest: info.digest, size: info.size, name: info.name };
+    sendToRenderer('update-available', { current: app.getVersion(), ...info, ...pick });
     try {
-      const info = await updater.checkLatest(app.getVersion());
-      if (info.hasUpdate) {
-        sendToRenderer('update-available', { current: app.getVersion(), ...info });
-      }
-    } catch {}
-  }, 6000);
+      const res = await downloadUpdateFile(pick.url, pick.digest);
+      if (res.ok) updateState = 'ready';
+      else { updateState = 'idle'; sendToRenderer('update-progress', { phase: 'error', error: res.error }); }
+    } catch (error) {
+      updateState = 'idle';
+      sendToRenderer('update-progress', { phase: 'error', error: error.message });
+    }
+  }
+  setTimeout(autoUpdateCheck, 6000);
+  setInterval(autoUpdateCheck, 60 * 60 * 1000);
 
   const exitApp = () => { quitting = true; app.exit(0); };
   const modelsDir = path.join(app.getPath('userData'), 'models');
