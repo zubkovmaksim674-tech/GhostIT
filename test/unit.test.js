@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { isQuestion, createFragmentMerger } = require('../lib/question');
+const { isQuestion, createFragmentMerger, isSilenceJunk } = require('../lib/question');
 const { parseVersion, isNewer } = require('../lib/updater');
 const { buildMessages, normalizeBaseUrl } = require('../lib/llm');
 
@@ -65,6 +65,16 @@ test('createFragmentMerger: окно и слишком длинные фразы
   const long = createFragmentMerger({ windowMs: 5000, maxWords: 3 });
   long.remember('раз два три четыре');
   assert.equal(long.combine('короткий'), null);
+});
+
+test('isSilenceJunk: галлюцинации Whisper на тишине', () => {
+  assert.equal(isSilenceJunk('Редактор субтитров А. Кядаша'), true);
+  assert.equal(isSilenceJunk('Субтитры сделал DimaTorzok'), true);
+  assert.equal(isSilenceJunk('Спасибо за внимание'), true);
+  assert.equal(isSilenceJunk('Thanks for watching'), true);
+  assert.equal(isSilenceJunk(''), false);
+  assert.equal(isSilenceJunk('Как работает редактор субтитров в ffmpeg'), false);
+  assert.equal(isSilenceJunk('расскажи про субтитры в ffmpeg: как их сделать, какие форматы поддерживаются и чем one-pass отличается от two-pass на длинных видео'), false);
 });
 
 test('updater.parseVersion', () => {

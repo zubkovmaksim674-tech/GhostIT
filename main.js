@@ -4,7 +4,7 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const config = require('./lib/config');
 const { streamAnswer } = require('./lib/llm');
-const { isQuestion, createFragmentMerger } = require('./lib/question');
+const { isQuestion, createFragmentMerger, isSilenceJunk } = require('./lib/question');
 const updater = require('./lib/updater');
 const harness = require('./test/harness');
 
@@ -734,7 +734,8 @@ function registerIpc() {
 ipcMain.handle('transcribe', async (event, pcm, options) => {
     try {
       sendStatus('transcribe', '⏳ Распознаю речь…');
-      const text = await transcribe(pcm);
+      const rawText = await transcribe(pcm);
+      const text = rawText && !isSilenceJunk(rawText) ? rawText : '';
       if (!text) {
         sendStatus('idle', idleText());
         return { text: '', asked: false };
