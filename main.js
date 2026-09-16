@@ -927,8 +927,10 @@ function cleanupStaleAppCopies() {
     try { stat = fs.statSync(dir); } catch { continue; }
     if (stat.mtimeMs > cutoff) continue;
     let ours = false;
-    for (const exe of ['GhostIT.exe', 'GhostQA.exe']) {
-      if (fs.existsSync(path.join(dir, exe)) || fs.existsSync(path.join(dir, '7z-out', exe))) { ours = true; break; }
+    if (fs.existsSync(path.join(dir, 'resources'))) {
+      for (const exe of ['GhostIT.exe', 'GhostQA.exe']) {
+        if (fs.existsSync(path.join(dir, exe)) || fs.existsSync(path.join(dir, '7z-out', exe))) { ours = true; break; }
+      }
     }
     if (!ours) continue;
     try {
