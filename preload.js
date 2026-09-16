@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('ghost', {
   getConfig: () => ipcRenderer.invoke('get-config'),
   tgAuthStart: () => ipcRenderer.invoke('tg-auth-start'),
   tgAuthPoll: (sid) => ipcRenderer.invoke('tg-auth-poll', sid),
+  tgUnlink: () => ipcRenderer.invoke('tg-unlink'),
   saveConfig: (patch) => ipcRenderer.invoke('save-config', patch),
   hide: () => ipcRenderer.invoke('hide-overlay'),
   show: () => ipcRenderer.invoke('show-overlay'),

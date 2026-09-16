@@ -665,6 +665,26 @@ function registerIpc() {
     }
   });
 
+  ipcMain.handle('tg-unlink', async () => {
+    const cfg = config.load();
+    const key = cfg.api.apiKey || '';
+    let serverRevoked = true;
+    try {
+      const res = await fetch(AUTH_URL + '/v1/me', {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + key },
+        signal: AbortSignal.timeout(8000)
+      });
+      if (!res.ok && res.status !== 401 && res.status !== 404) serverRevoked = false;
+    } catch {
+      serverRevoked = false;
+    }
+    const updated = config.save({ api: { baseUrl: '', apiKey: '', model: '' } });
+    sendToRenderer('config-updated', updated);
+    log('TG_UNLINK serverRevoked=' + serverRevoked);
+    return { ok: true, serverRevoked };
+  });
+
   ipcMain.handle('save-config', (event, patch) => {
     const updated = config.save(patch);
     if (win && !win.isDestroyed()) {
@@ -865,6 +885,8 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
 
 async function boot() {
   app.setAppUserModelId('GhostIT');
+  const legacy = config.migrateLegacy();
+  if (legacy.migrated.length || legacy.removed.length) log('LEGACY_MIGRATE ' + JSON.stringify(legacy));
   const cfg = config.load();
   history = loadHistory();
   setupProtocol();

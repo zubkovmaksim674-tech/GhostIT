@@ -483,6 +483,8 @@ function fillSettings() {
   document.getElementById('s-auto').checked = autoOn;
   document.getElementById('s-sens').value = (config.autoListen && config.autoListen.sensitivity) || 35;
   document.getElementById('s-opacity').value = Math.round((config.ui.opacity || 0.95) * 100);
+  const unlinkBtn = document.getElementById('btn-tg-unlink');
+  if (unlinkBtn) unlinkBtn.classList.toggle('hidden', !config.api.apiKey);
 }
 
 function openSettings() {
@@ -693,6 +695,20 @@ async function startTgAuth() {
 }
 
 document.getElementById('btn-tg-auth').addEventListener('click', startTgAuth);
+document.getElementById('btn-tg-unlink').addEventListener('click', async () => {
+  const state = document.getElementById('tg-auth-state');
+  if (!window.confirm('Отвязать Telegram? Токен будет отозван на сервере — отвечать перестанет, пока не войдёшь заново.')) return;
+  const btn = document.getElementById('btn-tg-unlink');
+  btn.disabled = true;
+  state.textContent = 'отвязываю…';
+  const r = await window.ghost.tgUnlink();
+  btn.disabled = false;
+  if (r && r.ok) {
+    state.textContent = r.serverRevoked ? '🔓 отвязано, токен отозван' : '🔓 отвязано локально (сервер недоступен)';
+  } else {
+    state.textContent = 'не удалось отвязать';
+  }
+});
 document.getElementById('btn-hist-close').addEventListener('click', closeHistory);
 document.getElementById('btn-hist-clear').addEventListener('click', async () => {
   await window.ghost.clearHistory();
@@ -868,6 +884,8 @@ function applyClickThroughUi() {
 
 window.ghost.on('config-updated', (cfg) => {
   config = cfg;
+  const unlinkBtn = document.getElementById('btn-tg-unlink');
+  if (unlinkBtn) unlinkBtn.classList.toggle('hidden', !(cfg.api && cfg.api.apiKey));
   clickThrough = !!(cfg.ui && cfg.ui.clickThrough);
   applyClickThroughUi();
   if (vad.active || autoOn) {
