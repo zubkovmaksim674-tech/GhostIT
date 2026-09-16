@@ -31,6 +31,7 @@
     <div class="titlebar-controls">
       <button id="btn-history" class="titlebar-button" title="История сессии"><span class="ico">📜</span></button>
       <button id="btn-pin" class="titlebar-button" title="Клик сквозь окно (Ctrl+Shift+K)"><span class="ico">🖱</span></button>
+      <button id="btn-help" class="titlebar-button" title="Горячие клавиши и подсказки"><span class="ico">❓</span></button>
       <button id="btn-settings" class="settings-button" title="Настройки"><span class="gear ico">⚙️</span><span class="settings-label">Настройки</span></button>
       <button id="btn-hide" class="titlebar-button close-button" title="Скрыть (Ctrl+Shift+H)">✕</button>
     </div>
@@ -39,6 +40,8 @@
   <div class="status-container">
     <span id="status-dot" class="status-indicator idle"></span>
     <span id="status-text" class="status-message">Загрузка…</span>
+    <span id="session-stats" class="session-stats"></span>
+    <span id="usage-chip" class="usage-chip hidden" title="Осталось запросов сегодня"></span>
     <span id="mode-badge" class="badge badge-float hidden"></span>
   </div>
 
@@ -55,9 +58,14 @@
 
   <div id="answer-actions" class="suggestion-actions hidden">
     <button id="btn-copy" class="suggestion-action"><span class="ico">📋</span> Копировать</button>
+    <button id="btn-shorter" class="suggestion-action" title="Переписать последний ответ короче (1–2 предложения)"><span class="ico">✂️</span> Короче</button>
+    <button id="btn-longer" class="suggestion-action" title="Раскрыть последний ответ подробнее"><span class="ico">➕</span> Подробнее</button>
     <button id="btn-context" class="suggestion-action" title="Очистить память предыдущих вопросов"><span class="ico">🧹</span> Контекст</button>
     <button id="btn-clear" class="suggestion-action"><span class="ico">🧹</span> Очистить</button>
     <button id="btn-stop" class="suggestion-action danger"><span class="ico">⏹</span> Остановить</button>
+    <span class="spacer"></span>
+    <button id="btn-font-minus" class="suggestion-action" title="Мельче текст ответа">A−</button>
+    <button id="btn-font-plus" class="suggestion-action" title="Крупнее текст ответа">A+</button>
   </div>
 
 <div class="manual-input-container">
@@ -149,6 +157,31 @@
       <button id="btn-save" class="suggestion-action primary"><span class="ico">💾</span> Сохранить</button>
     </div>
     <div class="muted small">«Скрывать от записи экрана» — окно не будет видно в записи видео и демонстрации экрана (Windows WDA_EXCLUDEFROMCAPTURE), а тебе останется видимым. Модель Whisper скачивается один раз (~250 МБ для small) с зеркала ModelScope и работает офлайн.</div>
+  </div>
+
+  <div id="help-panel" class="settings-panel hidden">
+    <div class="panel-header">
+      <span class="panel-title">Горячие клавиши и подсказки</span>
+      <button id="btn-help-close" class="titlebar-button" title="Закрыть">✕</button>
+    </div>
+    <div class="section-label">Клавиши</div>
+    <div class="settings-card">
+      <div class="help-list">
+        <div><b>Ctrl+Shift+Space</b><span>говорить (зажать / переключение — по режиму активации)</span></div>
+        <div><b>Ctrl+Shift+H</b><span>показать / скрыть окно</span></div>
+        <div><b>Ctrl+Shift+K</b><span>клики сквозь окно вкл/выкл</span></div>
+        <div><b>Enter</b><span>отправить вопрос из поля внизу</span></div>
+      </div>
+    </div>
+    <div class="section-label">Кнопки ответа</div>
+    <div class="settings-card">
+      <div class="help-list">
+        <div><b>Короче / Подробнее</b><span>переписать последний ответ</span></div>
+        <div><b>Контекст</b><span>забыть прошлые вопросы (память интервью)</span></div>
+        <div><b>A− / A+</b><span>размер шрифта ответа</span></div>
+        <div><b>Мок (🎓)</b><span>тренировочное интервью по вакансии из поля</span></div>
+      </div>
+    </div>
   </div>
 
   <div id="history" class="history-panel hidden">

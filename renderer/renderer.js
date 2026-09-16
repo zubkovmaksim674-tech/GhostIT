@@ -8,6 +8,7 @@ const statusText = document.getElementById('status-text');
 const actionsEl = document.getElementById('answer-actions');
 const settingsEl = document.getElementById('settings');
 const historyEl = document.getElementById('history');
+const helpEl = document.getElementById('help-panel');
 const modeBadge = document.getElementById('mode-badge');
 const holdBtn = document.getElementById('btn-hold');
 const recordBtn = document.getElementById('btn-record');
@@ -609,6 +610,76 @@ document.getElementById('btn-context').addEventListener('click', async () => {
 });
 document.getElementById('btn-clear').addEventListener('click', clearAll);
 document.getElementById('btn-stop').addEventListener('click', () => window.ghost.stop());
+
+document.getElementById('btn-shorter').addEventListener('click', () => refineLastAnswer('shorter'));
+document.getElementById('btn-longer').addEventListener('click', () => refineLastAnswer('longer'));
+document.getElementById('btn-font-minus').addEventListener('click', () => setAnswerFontSize(answerFontSize - 1));
+document.getElementById('btn-font-plus').addEventListener('click', () => setAnswerFontSize(answerFontSize + 1));
+document.getElementById('btn-help').addEventListener('click', () => {
+  settingsEl.classList.add('hidden');
+  historyEl.classList.add('hidden');
+  helpEl.classList.remove('hidden');
+});
+document.getElementById('btn-help-close').addEventListener('click', () => helpEl.classList.add('hidden'));
+
+let answerFontSize = 13;
+let sessionQuestions = 0;
+const sessionStart = Date.now();
+
+function applyAnswerFontSize() {
+  document.documentElement.style.setProperty('--suggestion-font-size', answerFontSize + 'px');
+}
+
+async function setAnswerFontSize(size) {
+  answerFontSize = Math.max(10, Math.min(20, size));
+  applyAnswerFontSize();
+  await window.ghost.saveConfig({ ui: { fontSize: answerFontSize } });
+}
+
+async function refineLastAnswer(mode) {
+  if (!answerFull) return;
+  actionsEl.classList.add('hidden');
+  resetAnswer();
+  answerCursor.classList.remove('hidden');
+  await window.ghost.refineAnswer(mode);
+}
+
+function updateSessionStats() {
+  const el = document.getElementById('session-stats');
+  if (!el) return;
+  const total = Math.floor((Date.now() - sessionStart) / 1000);
+  const mm = String(Math.floor(total / 60)).padStart(2, '0');
+  const ss = String(total % 60).padStart(2, '0');
+  el.textContent = sessionQuestions + ' вопр. · ' + mm + ':' + ss;
+}
+setInterval(updateSessionStats, 1000);
+
+async function refreshUsage() {
+  const el = document.getElementById('usage-chip');
+  if (!el) return;
+  if (!(config && config.api && config.api.apiKey)) { el.classList.add('hidden'); return; }
+  try {
+    const me = await window.ghost.tgAuthMe();
+    if (!me || me.error) { el.classList.add('hidden'); return; }
+    const cap = Number(me.perDay);
+    const used = Number(me.used) || 0;
+    el.classList.remove('hidden');
+    if (!isFinite(cap) || cap <= 0) {
+      el.textContent = '⚡ ∞';
+      el.title = 'Безлимитный план';
+      el.className = 'usage-chip';
+      return;
+    }
+    const left = Math.max(0, cap - used);
+    el.textContent = '⚡ ' + left;
+    el.title = `Осталось сегодня: ${left} из ${cap} запросов`;
+    el.className = 'usage-chip' + (left === 0 ? ' usage-out' : left <= Math.max(3, Math.round(cap * 0.1)) ? ' usage-warn' : '');
+  } catch {
+    el.classList.add('hidden');
+  }
+}
+refreshUsage();
+setInterval(refreshUsage, 60000);
 document.getElementById('btn-send').addEventListener('click', sendManual);
 document.getElementById('manual-q').addEventListener('keydown', (event) => {
   if (event.key === 'Enter') sendManual();
@@ -721,9 +792,10 @@ async function startTgAuth() {
       box.classList.add('hidden');
       setStatus('ok', 'Telegram-аккаунт привязан');
       refreshTgAccount();
+      refreshUsage();
       setTimeout(() => setStatus('idle', autoOn ? autoIdleText() : 'Готов'), 2000);
     }
-  }, 2500);
+  }, 1000);
 }
 
 document.getElementById('btn-tg-auth').addEventListener('click', startTgAuth);
@@ -801,12 +873,14 @@ window.ghost.on('answer-done', () => {
   if (answerFull) finishAnswer();
   flushPendingSegment();
   if (!autoOn) setStatus('idle', 'Готов');
+  refreshUsage();
 });
 
 window.ghost.on('answer-error', (message) => {
   vad.busy = false;
   flushPendingSegment();
   if (message) setStatus('err', 'Ошибка: ' + message);
+  refreshUsage();
 });
 
 window.ghost.on('open-settings', openSettings);
@@ -902,6 +976,8 @@ window.ghost.on('update-available', (info) => {
 window.ghost.on('history-count', (count) => {
   const el = document.getElementById('history-count');
   if (el) el.textContent = count + ' вопросов';
+  sessionQuestions = count;
+  updateSessionStats();
 });
 
 function applyClickThroughUi() {
@@ -916,7 +992,12 @@ function applyClickThroughUi() {
 
 window.ghost.on('config-updated', (cfg) => {
   config = cfg;
+  if (cfg.ui && cfg.ui.fontSize) {
+    answerFontSize = cfg.ui.fontSize;
+    applyAnswerFontSize();
+  }
   refreshTgAccount();
+  refreshUsage();
   clickThrough = !!(cfg.ui && cfg.ui.clickThrough);
   applyClickThroughUi();
   if (vad.active || autoOn) {
@@ -928,6 +1009,7 @@ window.ghost.on('config-updated', (cfg) => {
 
 async function init() {
   config = await window.ghost.getConfig();
+  refreshUsage();
   autoOn = !!(config.autoListen && config.autoListen.enabled);
   vad.threshold = thresholdFromConfig();
   vad.silenceMs = (config.autoListen && config.autoListen.silenceMs) || 1300;
@@ -936,6 +1018,9 @@ async function init() {
   clickThrough = !!(config.ui && config.ui.clickThrough);
   applyClickThroughUi();
   setAutoUi(autoOn);
+  answerFontSize = (config.ui && config.ui.fontSize) || 13;
+  applyAnswerFontSize();
+  updateSessionStats();
   setStatus('idle', autoOn ? autoIdleText() : 'Готов');
 }
 
