@@ -26,12 +26,12 @@
     </div>
     <span class="spacer"></span>
     <div class="action-buttons-container">
-      <button id="btn-hold" class="action-button" title="Автослушание (слушать вопросы самому)">🎙 Авто</button>
+      <button id="btn-hold" class="action-button" title="Автослушание (слушать вопросы самому)"><span class="ico">🎙</span> Авто</button>
     </div>
     <div class="titlebar-controls">
-      <button id="btn-history" class="titlebar-button" title="История сессии">📜</button>
-      <button id="btn-pin" class="titlebar-button" title="Клик сквозь окно (Ctrl+Shift+K)">🖱</button>
-      <button id="btn-settings" class="settings-button" title="Настройки"><span class="gear">⚙️</span><span class="settings-label">Настройки</span></button>
+      <button id="btn-history" class="titlebar-button" title="История сессии"><span class="ico">📜</span></button>
+      <button id="btn-pin" class="titlebar-button" title="Клик сквозь окно (Ctrl+Shift+K)"><span class="ico">🖱</span></button>
+      <button id="btn-settings" class="settings-button" title="Настройки"><span class="gear ico">⚙️</span><span class="settings-label">Настройки</span></button>
       <button id="btn-hide" class="titlebar-button close-button" title="Скрыть (Ctrl+Shift+H)">✕</button>
     </div>
   </header>
@@ -54,15 +54,15 @@
   </div>
 
   <div id="answer-actions" class="suggestion-actions hidden">
-    <button id="btn-copy" class="suggestion-action">📋 Копировать</button>
-    <button id="btn-context" class="suggestion-action" title="Очистить память предыдущих вопросов">🧹 Контекст</button>
-    <button id="btn-clear" class="suggestion-action">🧹 Очистить</button>
-    <button id="btn-stop" class="suggestion-action danger">⏹ Остановить</button>
+    <button id="btn-copy" class="suggestion-action"><span class="ico">📋</span> Копировать</button>
+    <button id="btn-context" class="suggestion-action" title="Очистить память предыдущих вопросов"><span class="ico">🧹</span> Контекст</button>
+    <button id="btn-clear" class="suggestion-action"><span class="ico">🧹</span> Очистить</button>
+    <button id="btn-stop" class="suggestion-action danger"><span class="ico">⏹</span> Остановить</button>
   </div>
 
 <div class="manual-input-container">
       <input id="manual-q" class="manual-input" type="text" placeholder="Вопрос или тема:" autocomplete="off">
-      <button id="btn-mock" class="send-button mock-button" title="Мок-интервью: введи вакансию/тему, нажми 🎓 — ИИ задаёт вопросы и оценивает ответы">🎓 Мок</button>
+      <button id="btn-mock" class="send-button mock-button" title="Мок-интервью: введи вакансию/тему, нажми 🎓 — ИИ задаёт вопросы и оценивает ответы"><span class="ico">🎓</span> Мок</button>
       <button id="btn-send" class="send-button" title="Отправить (Enter)">Отправить</button>
   </div>
 
@@ -74,7 +74,7 @@
 
     <div class="section-label">Подключение</div>
     <div class="settings-card">
-      <label>Base URL API<input id="s-baseurl" type="text" spellcheck="false"></label>
+      <label>Base URL<input id="s-baseurl" type="text" spellcheck="false"></label>
       <label>API-ключ<input id="s-apikey" type="password" spellcheck="false"></label>
       <label>Модель<input id="s-model" type="text" spellcheck="false"></label>
     </div>
@@ -82,8 +82,8 @@
     <div class="section-label">Аккаунт</div>
     <div class="settings-card">
       <div class="settings-actions">
-        <button id="btn-tg-auth" class="suggestion-action primary">🔑 Телеграм</button>
-        <button id="btn-tg-unlink" class="suggestion-action hidden">🔓 Отвязать Telegram</button>
+        <button id="btn-tg-auth" class="suggestion-action primary"><span class="ico">🔑</span> Телеграм</button>
+        <button id="btn-tg-unlink" class="suggestion-action hidden"><span class="ico">🔓</span> Отвязать Telegram</button>
         <span class="muted small" id="tg-auth-state"></span>
       </div>
       <div id="tg-auth-box" class="hidden">
@@ -118,12 +118,12 @@
         <option value="auto">Автоопределение</option>
         <option value="en">English</option>
       </select></label>
-<label>Автослушание слушает<select id="s-listen">
+      <label>Автослушание слушает<select id="s-listen">
         <option value="system">Системный звук (собеседник) — рекомендуется</option>
         <option value="mic">Микрофон (твой голос)</option>
       </select></label>
       <div class="settings-actions">
-        <button id="btn-dl-model" class="suggestion-action">⬇️ Скачать модель</button>
+        <button id="btn-dl-model" class="suggestion-action"><span class="ico">⬇️</span> Скачать модель</button>
       </div>
     </div>
 
@@ -140,13 +140,13 @@
     <div class="settings-card">
       <div class="muted small" id="update-version"></div>
       <div class="settings-actions">
-        <button id="btn-check-update" class="suggestion-action">🔄 Проверить обновления</button>
+        <button id="btn-check-update" class="suggestion-action"><span class="ico">🔄</span> Проверить обновления</button>
       </div>
       <div id="update-info" class="muted small"></div>
     </div>
 
     <div class="settings-actions">
-      <button id="btn-save" class="suggestion-action primary">💾 Сохранить</button>
+      <button id="btn-save" class="suggestion-action primary"><span class="ico">💾</span> Сохранить</button>
     </div>
     <div class="muted small">«Скрывать от записи экрана» — окно не будет видно в записи видео и демонстрации экрана (Windows WDA_EXCLUDEFROMCAPTURE), а тебе останется видимым. Модель Whisper скачивается один раз (~250 МБ для small) с зеркала ModelScope и работает офлайн.</div>
   </div>
@@ -158,8 +158,8 @@
     </div>
     <div id="history-list" class="history-list"></div>
     <div class="settings-actions">
-      <button id="btn-hist-export" class="suggestion-action">💾 В файл</button>
-      <button id="btn-hist-clear" class="suggestion-action danger">🗑 Очистить</button>
+      <button id="btn-hist-export" class="suggestion-action"><span class="ico">💾</span> В файл</button>
+      <button id="btn-hist-clear" class="suggestion-action danger"><span class="ico">🗑</span> Очистить</button>
       <button id="btn-hist-close" class="suggestion-action">Закрыть</button>
     </div>
     <div class="muted small">Вопросы и ответы сохраняются автоматически. «В файл» предложит выбрать место для сохранения (по умолчанию «Документы → GhostIT-история.txt»).</div>
