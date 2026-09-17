@@ -11,6 +11,8 @@
   Delete "$TEMP\GhostQA-new.exe"
   Delete "$TEMP\GhostQA-new.exe.part"
   Delete "$TEMP\ghostit-update-helper.js"
+  Delete "$TEMP\ghostit-update-helper.vbs"
+  Delete "$TEMP\ghostit-update.cmd"
   Delete "$TEMP\ghostit-update.log"
   Delete "$TEMP\ghostqa-update-helper.js"
   Delete "$TEMP\ghostqa-update.log"

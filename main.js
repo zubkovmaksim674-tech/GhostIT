@@ -1023,7 +1023,7 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
 }
 
 function cleanupStaleUpdateFiles() {
-  const candidates = ['GhostIT-new.exe', 'GhostIT-new.exe.part', 'ghostit-update-helper.js', 'ghostit-update.log'];
+  const candidates = ['GhostIT-new.exe', 'GhostIT-new.exe.part', 'GhostIT-Setup-new.exe.part', 'ghostit-update-helper.js', 'ghostit-update-helper.vbs', 'ghostit-update.cmd', 'ghostit-update.log'];
   const cutoff = Date.now() - 5 * 60 * 1000;
   for (const name of candidates) {
     const p = path.join(app.getPath('temp'), name);
