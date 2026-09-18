@@ -523,9 +523,11 @@ async function speak(text) {
   const estMs = Math.max(3000, Math.round(clean.length * 80) + 1500);
   if (window.ghost && window.ghost.ttsSpeak) {
     try {
-      const data = await window.ghost.ttsSpeak(clean.slice(0, 1000));
+      const res = await window.ghost.ttsSpeak(clean.slice(0, 1200));
+      const data = res && res.data ? res.data : res;
+      const mime = res && res.type ? res.type : 'audio/mpeg';
       if (data && data.byteLength > 500) {
-        const blob = new Blob([data], { type: 'audio/mpeg' });
+        const blob = new Blob([data], { type: mime });
         const url = URL.createObjectURL(blob);
         ttsAudio = new Audio(url);
         ttsAudio.onplaying = () => extendSuppress(estMs);

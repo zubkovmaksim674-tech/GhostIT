@@ -6,6 +6,7 @@ const config = require('./lib/config');
 const { streamAnswer } = require('./lib/llm');
 const { isQuestion, createFragmentMerger, isSilenceJunk } = require('./lib/question');
 const updater = require('./lib/updater');
+const localTts = require('./lib/localtts');
 const harness = require('./test/harness');
 
 app.disableHardwareAcceleration();
@@ -877,24 +878,31 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
     return true;
   });
 
-  // Озвучка ответов «джарвис-стилем»: аудио тянет main (CSP renderer'а не пускает сеть),
-  // при сбое renderer падает на системный TTS.
+  // Озвучка ответов «джарвис-стилем»: 1) облако (если есть ключ) — премиум-голос,
+  // 2) локальный Piper + DSP-профиль «deep» (офлайн, без ключей), 3) системный TTS — в renderer.
   ipcMain.handle('tts-speak', async (event, text) => {
+    const clean = String(text || '').slice(0, 1200);
     const cfg = config.load();
     const base = String((cfg.api && cfg.api.baseUrl) || '').replace(/\/+$/, '');
-    if (!base || !cfg.api.apiKey) return null;
-    try {
-      const res = await fetch(base + '/audio/speech', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + cfg.api.apiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: String(text || '').slice(0, 1000) }),
-        signal: AbortSignal.timeout(15000)
-      });
-      if (!res.ok) return null;
-      return Buffer.from(await res.arrayBuffer());
-    } catch {
-      return null;
+    if (base && cfg.api.apiKey) {
+      try {
+        const res = await fetch(base + '/audio/speech', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + cfg.api.apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input: clean.slice(0, 1000) }),
+          signal: AbortSignal.timeout(15000)
+        });
+        if (res.ok) {
+          const buf = Buffer.from(await res.arrayBuffer());
+          if (buf.length > 500) return { type: 'audio/mpeg', data: buf };
+        }
+      } catch {}
     }
+    try {
+      const wav = await localTts.synthesize(clean);
+      if (wav && wav.length > 500) return { type: 'audio/wav', data: wav };
+    } catch {}
+    return null;
   });
 
   ipcMain.handle('copy-text', (event, text) => {
