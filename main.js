@@ -877,6 +877,26 @@ ipcMain.handle('transcribe', async (event, pcm, options) => {
     return true;
   });
 
+  // Озвучка ответов «джарвис-стилем»: аудио тянет main (CSP renderer'а не пускает сеть),
+  // при сбое renderer падает на системный TTS.
+  ipcMain.handle('tts-speak', async (event, text) => {
+    const cfg = config.load();
+    const base = String((cfg.api && cfg.api.baseUrl) || '').replace(/\/+$/, '');
+    if (!base || !cfg.api.apiKey) return null;
+    try {
+      const res = await fetch(base + '/audio/speech', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + cfg.api.apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: String(text || '').slice(0, 1000) }),
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!res.ok) return null;
+      return Buffer.from(await res.arrayBuffer());
+    } catch {
+      return null;
+    }
+  });
+
   ipcMain.handle('copy-text', (event, text) => {
     clipboard.writeText(String(text || ''));
     return true;

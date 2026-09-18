@@ -32,7 +32,9 @@ const eslintConfig = [
         Buffer: 'readonly',
         __dirname: 'readonly',
         AbortSignal: 'readonly',
-        TextDecoder: 'readonly'
+        TextDecoder: 'readonly',
+        Blob: 'readonly',
+        Audio: 'readonly'
       }
     },
     rules: {

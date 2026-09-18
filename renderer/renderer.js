@@ -496,7 +496,12 @@ function applyAutoState() {
   if (!shouldBeOn && vad.active) stopAutoListen();
 }
 
-function speak(text) {
+let ttsAudio = null;
+function stopSpeech() {
+  try { if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; } } catch {}
+  try { window.speechSynthesis.cancel(); } catch {}
+}
+function speakSystem(text) {
   try {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
@@ -509,6 +514,31 @@ function speak(text) {
     utterance.onerror = () => extendSuppress(900);
     window.speechSynthesis.speak(utterance);
   } catch {}
+}
+// Сначала облачный голос («джарвис-стиль», Yandex SpeechKit через прокси), при сбое — системный TTS.
+async function speak(text) {
+  stopSpeech();
+  const clean = String(text || '').replace(/[*`#]/g, '').trim();
+  if (!clean) return;
+  const estMs = Math.max(3000, Math.round(clean.length * 80) + 1500);
+  if (window.ghost && window.ghost.ttsSpeak) {
+    try {
+      const data = await window.ghost.ttsSpeak(clean.slice(0, 1000));
+      if (data && data.byteLength > 500) {
+        const blob = new Blob([data], { type: 'audio/mpeg' });
+        const url = URL.createObjectURL(blob);
+        ttsAudio = new Audio(url);
+        ttsAudio.onplaying = () => extendSuppress(estMs);
+        ttsAudio.onended = () => { ttsAudio = null; URL.revokeObjectURL(url); extendSuppress(900); };
+        ttsAudio.onerror = () => { ttsAudio = null; URL.revokeObjectURL(url); extendSuppress(900); };
+        await ttsAudio.play();
+        return;
+      }
+    } catch {
+      // нет облачной озвучки — ниже системный TTS
+    }
+  }
+  speakSystem(clean);
 }
 
 const THEMES = ['violet', 'graphite', 'neon', 'amber'];
@@ -675,7 +705,7 @@ document.getElementById('btn-context').addEventListener('click', async () => {
   setTimeout(() => setStatus('idle', autoOn ? autoIdleText() : 'Готов'), 1400);
 });
 document.getElementById('btn-clear').addEventListener('click', clearAll);
-document.getElementById('btn-stop').addEventListener('click', () => window.ghost.stop());
+document.getElementById('btn-stop').addEventListener('click', () => { stopSpeech(); window.ghost.stop(); });
 
 document.getElementById('btn-shorter').addEventListener('click', () => refineLastAnswer('shorter'));
 document.getElementById('btn-longer').addEventListener('click', () => refineLastAnswer('longer'));

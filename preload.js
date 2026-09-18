@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('ghost', {
   refineAnswer: (mode) => ipcRenderer.invoke('refine-answer', mode),
   mockToggle: (topic) => ipcRenderer.invoke('mock-toggle', topic),
   stop: () => ipcRenderer.invoke('stop-answer'),
+  ttsSpeak: (text) => ipcRenderer.invoke('tts-speak', text),
   copy: (text) => ipcRenderer.invoke('copy-text', text),
   getConfig: () => ipcRenderer.invoke('get-config'),
   tgAuthStart: () => ipcRenderer.invoke('tg-auth-start'),
